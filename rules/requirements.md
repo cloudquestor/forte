@@ -24,8 +24,6 @@ Build a system to authenticate users before granting WiFi access and enforce acc
 - **Authorization Engine**
   - Determines access policies (time, bandwidth, roles)
 
-- **RADIUS Server (Optional but Recommended)**
-  - Standard protocol for AAA (Authentication, Authorization, Accounting)
 
 - **User Database**
   - Stores users, devices, sessions

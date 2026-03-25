@@ -1,0 +1,13 @@
+# /etc/config/dhcp  (captive portal additions)
+# Apply with: uci import dhcp < dhcp.uci && uci commit dhcp && /etc/init.d/dnsmasq restart
+
+config dhcp 'captive'
+	option interface  'captive'
+	option start      '100'
+	option limit      '150'
+	option leasetime  '1h'
+
+# Redirect all DNS queries to the router so the captive portal
+# detection probes (connectivitycheck, captive.apple.com, etc.) resolve locally
+config dnsmasq
+	option address    '/#/192.168.99.1'   # wildcard: every hostname → portal IP

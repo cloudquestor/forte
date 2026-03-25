@@ -1,0 +1,9 @@
+# /etc/config/network  (captive portal additions)
+# Apply with: uci import network < network.uci && uci commit network && /etc/init.d/network restart
+
+config interface 'captive'
+	option type     'bridge'
+	option ifname   'wlan0'          # change to your radio iface (wlan1 for 5 GHz)
+	option proto    'static'
+	option ipaddr   '192.168.99.1'
+	option netmask  '255.255.255.0'

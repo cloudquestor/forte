@@ -1,0 +1,10 @@
+# /etc/config/wireless  (captive portal SSID additions)
+# Apply with: uci import wireless < wireless.uci && uci commit wireless && wifi reload
+
+config wifi-iface 'forte_test'
+	option device     'radio0'        # change to radio1 for 5 GHz
+	option mode       'ap'
+	option ssid       'forte-test'
+	option encryption 'none'          # open network — portal handles auth
+	option network    'captive'
+	option isolate    '1'             # client isolation: clients can't talk to each other

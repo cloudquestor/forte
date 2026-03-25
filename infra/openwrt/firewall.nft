@@ -1,0 +1,52 @@
+#!/usr/sbin/nft -f
+# Captive portal firewall rules for OpenWRT (nftables)
+# Loaded by setup.sh, flushed by teardown.sh
+
+# ── tables ────────────────────────────────────────────────────────────────────
+table inet forte {
+
+    # Allowlist: MACs that have authenticated.
+    # Populated at runtime by the backend via: nft add element inet forte allowed_macs { aa:bb:cc:dd:ee:ff }
+    set allowed_macs {
+        type ether_addr
+        flags dynamic, timeout
+        timeout 8h          # session TTL — matches backend session expiry
+    }
+
+    # ── forward chain ─────────────────────────────────────────────────────────
+    chain captive_forward {
+        type filter hook forward priority 0; policy drop;
+
+        # Allow already-authenticated clients
+        ether saddr @allowed_macs accept
+
+        # Allow established/related (return traffic for allowed sessions)
+        ct state established,related accept
+
+        # Drop everything else (unauthenticated clients)
+        drop
+    }
+
+    # ── prerouting: redirect unauthenticated HTTP/HTTPS to portal ─────────────
+    chain captive_prerouting {
+        type nat hook prerouting priority -100;
+
+        # Skip already-authenticated clients
+        ether saddr @allowed_macs return
+
+        # Redirect HTTP → portal on port 80
+        iifname "br-captive" tcp dport 80  redirect to :80
+
+        # Redirect HTTPS → portal on port 443 (shows cert warning — expected in test rig)
+        iifname "br-captive" tcp dport 443 redirect to :443
+    }
+
+    # ── allow portal server traffic through ───────────────────────────────────
+    chain captive_input {
+        type filter hook input priority 0; policy accept;
+
+        # Always allow DHCP, DNS, and portal HTTP/HTTPS from captive clients
+        iifname "br-captive" udp dport { 53, 67 } accept
+        iifname "br-captive" tcp dport { 80, 443 } accept
+    }
+}
