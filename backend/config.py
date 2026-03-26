@@ -3,7 +3,9 @@ import os
 # Users — comma-separated "user:pass" pairs
 # e.g. FORTE_USERS="admin:secret,guest:guest123"
 def _parse_users() -> dict[str, str]:
-    raw = os.getenv("FORTE_USERS", "admin:password123")
+    raw = os.getenv("FORTE_USERS")
+    if not raw:
+        raise RuntimeError("FORTE_USERS environment variable is required (e.g. admin:secret,user2:pass2)")
     users = {}
     for pair in raw.split(","):
         pair = pair.strip()

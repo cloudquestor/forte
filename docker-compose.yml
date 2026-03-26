@@ -8,14 +8,14 @@ volumes:
 services:
 
   backend:
-    build: ./backend
+    image: ghcr.io/cloudquestor/forte-backend:latest
     container_name: forte-backend
     restart: unless-stopped
     networks:
       - forte
     environment:
       # Comma-separated "user:pass" pairs
-      FORTE_USERS: ${FORTE_USERS:-admin:password123}
+      FORTE_USERS: ${FORTE_USERS}
       # Session TTL in nftables format (e.g. 8h, 30m)
       FORTE_SESSION_TTL: ${FORTE_SESSION_TTL:-8h}
       # nftables table and set names (must match firewall.nft)
@@ -36,19 +36,18 @@ services:
       retries: 3
 
   portal:
-    build:
-      context: ./portal
-      args:
-        VITE_API_URL: ${VITE_API_URL:-}
-        VITE_DEFAULT_REDIRECT: ${VITE_DEFAULT_REDIRECT:-http://captive.apple.com/hotspot-detect.html}
-        VITE_APP_NAME: ${VITE_APP_NAME:-Forte WiFi}
-        VITE_APP_TAGLINE: ${VITE_APP_TAGLINE:-Sign in to access the network}
-        VITE_POLICY_TEXT: ${VITE_POLICY_TEXT:-By signing in you agree to the network usage policy.}
-        VITE_TOKEN_KEY: ${VITE_TOKEN_KEY:-forte_token}
+    image: ghcr.io/cloudquestor/forte-portal:latest
     container_name: forte-portal
     restart: unless-stopped
     networks:
       - forte
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-}
+      VITE_DEFAULT_REDIRECT: ${VITE_DEFAULT_REDIRECT:-http://captive.apple.com/hotspot-detect.html}
+      VITE_APP_NAME: ${VITE_APP_NAME:-Forte WiFi}
+      VITE_APP_TAGLINE: ${VITE_APP_TAGLINE:-Sign in to access the network}
+      VITE_POLICY_TEXT: ${VITE_POLICY_TEXT:-By signing in you agree to the network usage policy.}
+      VITE_TOKEN_KEY: ${VITE_TOKEN_KEY:-forte_token}
     ports:
       - "${PORTAL_PORT:-80}:80"
     depends_on:
