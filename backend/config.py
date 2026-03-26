@@ -1,5 +1,8 @@
 import os
 
+# Debug mode — set FORTE_DEBUG=true to enable debug logging
+DEBUG: bool = os.getenv("FORTE_DEBUG", "").lower() in ("1", "true", "yes")
+
 # Users — comma-separated "user:pass" pairs
 # e.g. FORTE_USERS="admin:secret,guest:guest123"
 def _parse_users() -> dict[str, str]:
@@ -33,6 +36,11 @@ NFT_SET:   str = os.getenv("FORTE_NFT_SET",   "allowed_macs")
 
 # When set, nft commands are run inside this Docker container (test rig mode)
 ROUTER_CONTAINER: str | None = os.getenv("FORTE_ROUTER_CONTAINER")
+
+# Omada controller integration (optional)
+# OMADA_CONTROLLER_ID is the identifier in the controller URL path
+# e.g. https://192.168.1.1:8043/abcdefghijklmnopqrstuvwxyzabcdef/ → ID is abcdefghijklmnopqrstuvwxyzabcdef
+OMADA_CONTROLLER_ID: str = os.getenv("OMADA_CONTROLLER_ID", "")
 
 # CORS — comma-separated allowed origins
 CORS_ORIGINS: list[str] = [

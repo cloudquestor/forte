@@ -4,11 +4,15 @@ from pydantic import BaseModel
 import auth
 import config
 import db
+import log
+
+logger = log.get("main")
 
 app = FastAPI(title="Forte Auth API")
 
 @app.on_event("startup")
 def startup():
+    logger.info("Forte backend starting up (debug=%s)", config.DEBUG)
     db.init()
 
 app.add_middleware(
@@ -28,21 +32,36 @@ def _require_admin(authorization: str) -> None:
 
 
 class LoginRequest(BaseModel):
-    username: str
-    password: str
-    mac_address: str | None = None
+    username:     str
+    password:     str
+    mac_address:  str | None = None
+    ap_mac:       str | None = None
+    ssid_name:    str | None = None
+    radio_id:     str | None = None
+    gateway_mac:  str | None = None
+    vid:          str | None = None
 
 
 @app.post("/api/auth/login")
 def login(body: LoginRequest):
-    token = auth.authenticate(body.username, body.password, body.mac_address)
+    logger.debug("POST /api/auth/login user=%s mac=%s ap_mac=%s ssid=%s radio_id=%s gw_mac=%s vid=%s",
+                 body.username, body.mac_address, body.ap_mac, body.ssid_name,
+                 body.radio_id, body.gateway_mac, body.vid)
+    token = auth.authenticate(
+        body.username, body.password, body.mac_address,
+        ap_mac=body.ap_mac, ssid_name=body.ssid_name, radio_id=body.radio_id,
+        gateway_mac=body.gateway_mac, vid=body.vid,
+    )
+    logger.debug("POST /api/auth/login success user=%s", body.username)
     return {"access_token": token, "token_type": "bearer"}
 
 
 @app.delete("/api/auth/logout")
 def logout(authorization: str = Header(...)):
     token = authorization.removeprefix("Bearer ").strip()
+    logger.debug("DELETE /api/auth/logout token=%s...", token[:8])
     auth.revoke(token)
+    logger.debug("DELETE /api/auth/logout success")
     return {"status": "logged out"}
 
 

@@ -1,6 +1,6 @@
 import config from './config'
 
-export async function login(username, password, macAddress) {
+export async function login(username, password, macAddress, omadaParams) {
   const res = await fetch(`${config.apiUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -8,13 +8,18 @@ export async function login(username, password, macAddress) {
       username,
       password,
       mac_address: macAddress ?? null,
+      ap_mac:      omadaParams?.apMac ?? null,
+      ssid_name:   omadaParams?.ssidName ?? null,
+      radio_id:    omadaParams?.radioId ?? null,
+      gateway_mac: omadaParams?.gatewayMac ?? null,
+      vid:         omadaParams?.vid ?? null,
     }),
   })
   if (!res.ok) {
     const { detail } = await res.json().catch(() => ({ detail: 'Login failed' }))
     throw new Error(detail)
   }
-  return res.json()  // { access_token, token_type }
+  return res.json()
 }
 
 export async function logout(token) {

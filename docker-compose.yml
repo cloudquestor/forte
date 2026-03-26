@@ -9,6 +9,7 @@ services:
 
   backend:
     image: ghcr.io/cloudquestor/forte-backend:latest
+    #build: ./backend
     container_name: forte-backend
     restart: unless-stopped
     networks:
@@ -16,6 +17,8 @@ services:
     environment:
       # Comma-separated "user:pass" pairs
       FORTE_USERS: ${FORTE_USERS}
+      # Enable debug logging
+      FORTE_DEBUG: ${FORTE_DEBUG:-false}
       # Session TTL in nftables format (e.g. 8h, 30m)
       FORTE_SESSION_TTL: ${FORTE_SESSION_TTL:-8h}
       # nftables table and set names (must match firewall.nft)
@@ -27,6 +30,12 @@ services:
       FORTE_ADMINS: ${FORTE_ADMINS:-admin}
       # Comma-separated CORS origins
       FORTE_CORS_ORIGINS: ${FORTE_CORS_ORIGINS:-http://localhost}
+      # Omada controller integration (optional)
+      OMADA_CONTROLLER_URL: ${OMADA_CONTROLLER_URL:-}
+      OMADA_CONTROLLER_ID: ${OMADA_CONTROLLER_ID:-}
+      OMADA_SITE_ID: ${OMADA_SITE_ID:-Default}
+      OMADA_USERNAME: ${OMADA_USERNAME:-}
+      OMADA_PASSWORD: ${OMADA_PASSWORD:-}
     volumes:
       - forte-data:/data
     healthcheck:
@@ -37,6 +46,7 @@ services:
 
   portal:
     image: ghcr.io/cloudquestor/forte-portal:latest
+    #build: ./portal
     container_name: forte-portal
     restart: unless-stopped
     networks:
@@ -49,7 +59,7 @@ services:
       VITE_POLICY_TEXT: ${VITE_POLICY_TEXT:-By signing in you agree to the network usage policy.}
       VITE_TOKEN_KEY: ${VITE_TOKEN_KEY:-forte_token}
     ports:
-      - "${PORTAL_PORT:-80}:9090"
+      - "${PORTAL_PORT:-80}:80"
     depends_on:
       backend:
         condition: service_healthy

@@ -33,6 +33,12 @@ FORTE_NFT_TABLE=forte
 FORTE_NFT_SET=allowed_macs
 FORTE_ROUTER_CONTAINER=
 
+# Omada controller integration (optional)
+OMDA_CONTROLLER_URL=
+OMDA_SITE_ID=Default
+OMDA_USERNAME=
+OMDA_PASSWORD=
+
 PORTAL_PORT=80
 VITE_APP_NAME=Forte WiFi
 VITE_APP_TAGLINE=Sign in to access the network
@@ -94,6 +100,10 @@ docker run -d \
 | `FORTE_NFT_TABLE` | no | `forte` | nftables table name (must match `firewall.nft`) |
 | `FORTE_NFT_SET` | no | `allowed_macs` | nftables set name (must match `firewall.nft`) |
 | `FORTE_ROUTER_CONTAINER` | no | — | Docker container name to run `nft` via `docker exec` (test rig mode) |
+| `OMADA_CONTROLLER_URL` | no | — | Omada controller base URL e.g. `https://192.168.1.1:8043` |
+| `OMADA_SITE_ID` | no | `Default` | Omada site ID |
+| `OMADA_USERNAME` | no | — | Omada controller admin username |
+| `OMADA_PASSWORD` | no | — | Omada controller admin password |
 
 ### Portal
 
