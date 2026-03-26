@@ -8,7 +8,7 @@ import omada
 
 logger = log.get("auth")
 
-MAC_RE = re.compile(r"^([0-9a-f]{2}:){5}[0-9a-f]{2}$", re.IGNORECASE)
+MAC_RE = re.compile(r"^([0-9A-Fa-f]{2}([-:])){5}([0-9A-Fa-f]{2})$", re.IGNORECASE)
 
 
 def _validate_mac(mac: str) -> str:
