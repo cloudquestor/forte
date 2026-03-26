@@ -1,0 +1,31 @@
+import os
+
+# Users — comma-separated "user:pass" pairs
+# e.g. FORTE_USERS="admin:secret,guest:guest123"
+def _parse_users() -> dict[str, str]:
+    raw = os.getenv("FORTE_USERS", "admin:password123")
+    users = {}
+    for pair in raw.split(","):
+        pair = pair.strip()
+        if ":" in pair:
+            u, p = pair.split(":", 1)
+            users[u.strip()] = p.strip()
+    return users
+
+USERS: dict[str, str] = _parse_users()
+
+# Session TTL passed to nftables (e.g. "8h", "30m")
+SESSION_TTL: str = os.getenv("FORTE_SESSION_TTL", "8h")
+
+# nftables table and set names
+NFT_TABLE: str = os.getenv("FORTE_NFT_TABLE", "forte")
+NFT_SET:   str = os.getenv("FORTE_NFT_SET",   "allowed_macs")
+
+# When set, nft commands are run inside this Docker container (test rig mode)
+ROUTER_CONTAINER: str | None = os.getenv("FORTE_ROUTER_CONTAINER")
+
+# CORS — comma-separated allowed origins
+CORS_ORIGINS: list[str] = [
+    o.strip()
+    for o in os.getenv("FORTE_CORS_ORIGINS", "http://localhost:5173").split(",")
+]
