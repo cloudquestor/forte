@@ -14,6 +14,14 @@ def _parse_users() -> dict[str, str]:
 
 USERS: dict[str, str] = _parse_users()
 
+# Admins — comma-separated usernames allowed to manage users
+# e.g. FORTE_ADMINS="admin,superuser"
+ADMIN_USERS: set[str] = {
+    u.strip()
+    for u in os.getenv("FORTE_ADMINS", "admin").split(",")
+    if u.strip()
+}
+
 # Session TTL passed to nftables (e.g. "8h", "30m")
 SESSION_TTL: str = os.getenv("FORTE_SESSION_TTL", "8h")
 

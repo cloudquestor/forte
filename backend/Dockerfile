@@ -8,7 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN chown -R forte:forte /app
+RUN chown -R forte:forte /app && mkdir -p /data && chown forte:forte /data
 
 USER forte
 
