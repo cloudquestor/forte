@@ -1,16 +1,20 @@
 import { useState } from 'react'
 import { login } from './api'
-
-const DEFAULT_REDIRECT = 'http://captive.apple.com/hotspot-detect.html'
+import config from './config'
 
 function getRedirectUrl() {
   const params = new URLSearchParams(window.location.search)
-  return params.get('redirect') || DEFAULT_REDIRECT
+  return params.get('redirect') || config.defaultRedirect
 }
 
-export default function LoginScreen() {
-  const [form, setForm] = useState({ username: '', password: '' })
-  const [error, setError] = useState('')
+function getMacAddress() {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('mac') || null
+}
+
+export default function LoginScreen({ adminMode, onLogin }) {
+  const [form, setForm]       = useState({ username: '', password: '' })
+  const [error, setError]     = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
@@ -18,9 +22,13 @@ export default function LoginScreen() {
     setError('')
     setLoading(true)
     try {
-      const { access_token } = await login(form.username, form.password)
-      sessionStorage.setItem('token', access_token)
-      window.location.href = getRedirectUrl()
+      const { access_token } = await login(form.username, form.password, adminMode ? null : getMacAddress())
+      if (adminMode) {
+        onLogin(access_token)
+      } else {
+        sessionStorage.setItem(config.tokenKey, access_token)
+        window.location.href = getRedirectUrl()
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -32,8 +40,8 @@ export default function LoginScreen() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-sm p-8">
         <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold text-gray-800">Forte WiFi</h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to access the network</p>
+          <h1 className="text-2xl font-bold text-gray-800">{config.appName}</h1>
+          <p className="text-sm text-gray-500 mt-1">{config.appTagline}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -75,7 +83,7 @@ export default function LoginScreen() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          By signing in you agree to the network usage policy.
+          {config.policyText}
         </p>
       </div>
     </div>

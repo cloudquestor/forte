@@ -12,30 +12,18 @@ networks:
 
 services:
   openwrt:
-    image: ubuntu:22.04          # QEMU host — pulls OpenWRT image at first boot
+    image: openwrt/rootfs:x86_64
     container_name: forte-openwrt
-    privileged: true             # needed for KVM + TUN/TAP
-    devices:
-      - /dev/kvm:/dev/kvm
-      - /dev/net/tun:/dev/net/tun
+    privileged: true
     networks:
-      - lan
-      - captive
+      lan:
+        ipv4_address: 10.99.1.2
+      captive:
+        ipv4_address: 10.99.2.2
     ports:
-      - "2222:2222"              # SSH into OpenWRT (QEMU forwards VM:22 → container:2222)
-      - "8080:8080"              # OpenWRT LuCI web UI (QEMU forwards VM:80 → container:8080)
+      - "2222:22"     # SSH / dropbear
+      - "8080:80"     # LuCI web UI
     volumes:
-      - openwrt-disk:/data       # persists the OpenWRT disk image across restarts
-      - ./entrypoint.sh:/entrypoint.sh:ro
-    entrypoint: ["/bin/bash", "/entrypoint.sh"]
-    healthcheck:
-      test: ["CMD", "ssh", "-o", "ConnectTimeout=3", "-o", "BatchMode=yes",
-             "-o", "StrictHostKeyChecking=no", "-p", "22",
-             "-i", "/data/forte_key", "root@127.0.0.1", "uname -a"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 60s
-
-volumes:
-  openwrt-disk:
+      - ./init.sh:/init.sh:ro
+    entrypoint: ["/bin/sh", "/init.sh"]
+    restart: unless-stopped
