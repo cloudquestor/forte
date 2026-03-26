@@ -4,12 +4,23 @@ import config from './config'
 
 function getRedirectUrl() {
   const params = new URLSearchParams(window.location.search)
-  return params.get('redirect') || config.defaultRedirect
+  return params.get('redirectUrl') || params.get('redirect') || config.defaultRedirect
 }
 
 function getMacAddress() {
   const params = new URLSearchParams(window.location.search)
-  return params.get('mac') || null
+  return params.get('clientMac') || params.get('mac') || null
+}
+
+function getOmadaParams() {
+  const p = new URLSearchParams(window.location.search)
+  return {
+    apMac:      p.get('apMac'),
+    ssidName:   p.get('ssidName'),
+    radioId:    p.get('radioId'),
+    gatewayMac: p.get('gatewayMac'),
+    vid:        p.get('vid'),
+  }
 }
 
 export default function LoginScreen({ adminMode, onLogin }) {
@@ -22,7 +33,7 @@ export default function LoginScreen({ adminMode, onLogin }) {
     setError('')
     setLoading(true)
     try {
-      const { access_token } = await login(form.username, form.password, adminMode ? null : getMacAddress())
+      const { access_token } = await login(form.username, form.password, adminMode ? null : getMacAddress(), adminMode ? null : getOmadaParams())
       if (adminMode) {
         onLogin(access_token)
       } else {
