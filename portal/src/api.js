@@ -1,18 +1,19 @@
 import config from './config'
 
-export async function login(username, password, macAddress, omadaParams) {
+export async function login(username, password, macAddress, omadaParams, policyAccepted = false) {
   const res = await fetch(`${config.apiUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       username,
       password,
-      mac_address: macAddress ?? null,
-      ap_mac:      omadaParams?.apMac ?? null,
-      ssid_name:   omadaParams?.ssidName ?? null,
-      radio_id:    omadaParams?.radioId ?? null,
-      gateway_mac: omadaParams?.gatewayMac ?? null,
-      vid:         omadaParams?.vid ?? null,
+      mac_address:     macAddress ?? null,
+      ap_mac:          omadaParams?.apMac ?? null,
+      ssid_name:       omadaParams?.ssidName ?? null,
+      radio_id:        omadaParams?.radioId ?? null,
+      gateway_mac:     omadaParams?.gatewayMac ?? null,
+      vid:             omadaParams?.vid ?? null,
+      policy_accepted: policyAccepted,
     }),
   })
   if (!res.ok) {

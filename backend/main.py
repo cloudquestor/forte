@@ -32,18 +32,21 @@ def _require_admin(authorization: str) -> None:
 
 
 class LoginRequest(BaseModel):
-    username:     str
-    password:     str
-    mac_address:  str | None = None
-    ap_mac:       str | None = None
-    ssid_name:    str | None = None
-    radio_id:     str | None = None
-    gateway_mac:  str | None = None
-    vid:          str | None = None
+    username:         str
+    password:         str
+    mac_address:      str | None = None
+    ap_mac:           str | None = None
+    ssid_name:        str | None = None
+    radio_id:         str | None = None
+    gateway_mac:      str | None = None
+    vid:              str | None = None
+    policy_accepted:  bool = False
 
 
 @app.post("/api/auth/login")
 def login(body: LoginRequest):
+    if not body.policy_accepted:
+        raise HTTPException(status_code=400, detail="You must accept the network usage policy")
     logger.debug("POST /api/auth/login user=%s mac=%s ap_mac=%s ssid=%s radio_id=%s gw_mac=%s vid=%s",
                  body.username, body.mac_address, body.ap_mac, body.ssid_name,
                  body.radio_id, body.gateway_mac, body.vid)
@@ -52,6 +55,7 @@ def login(body: LoginRequest):
         ap_mac=body.ap_mac, ssid_name=body.ssid_name, radio_id=body.radio_id,
         gateway_mac=body.gateway_mac, vid=body.vid,
     )
+    db.record_event('policy_accepted', body.username)
     logger.debug("POST /api/auth/login success user=%s", body.username)
     return {"access_token": token, "token_type": "bearer"}
 
