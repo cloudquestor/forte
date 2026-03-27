@@ -49,6 +49,9 @@ OTP_DUMMY_CODE: str = os.getenv("FORTE_OTP_DUMMY_CODE", "123456")
 # e.g. https://192.168.1.1:8043/abcdefghijklmnopqrstuvwxyzabcdef/ → ID is abcdefghijklmnopqrstuvwxyzabcdef
 OMADA_CONTROLLER_ID: str = os.getenv("OMADA_CONTROLLER_ID", "")
 
+# Max concurrent MAC addresses allowed per user (rolling — oldest is evicted)
+MAX_MACS_PER_USER: int = int(os.getenv("FORTE_MAX_MACS_PER_USER", "3"))
+
 # CORS — comma-separated allowed origins
 CORS_ORIGINS: list[str] = [
     o.strip()

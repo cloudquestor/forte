@@ -1,6 +1,7 @@
 import re
 import secrets
 from fastapi import HTTPException
+import config
 import db
 import firewall
 import log
@@ -29,14 +30,25 @@ def authenticate(
         logger.debug("authenticate: invalid credentials for user=%s", username)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    token = secrets.token_urlsafe(32)
     mac = _validate_mac(mac_address) if mac_address else None
-    db.create_session(token, username, mac)
-    db.record_event('login', username)
-    logger.debug("authenticate: session created for user=%s mac=%s", username, mac)
+
     if mac:
-        logger.debug("authenticate: calling firewall.allow mac=%s", mac)
+        active_count = db.get_active_mac_count(username)
+        if active_count >= config.MAX_MACS_PER_USER:
+            oldest = db.get_oldest_mac_session(username)
+            if oldest:
+                logger.debug("authenticate: evicting oldest mac=%s for user=%s", oldest["mac"], username)
+                db.pop_session(oldest["token"])
+                db.remove_mac_session(username, oldest["mac"])
+                firewall.revoke(oldest["mac"])
+                omada.unauthorize_client(oldest["mac"])
+
+    token = secrets.token_urlsafe(32)
+    db.create_session(token, username, mac)
+    if mac:
+        db.add_mac_session(username, mac, token)
         firewall.allow(mac)
+
     effective_mac = mac or "00:00:00:00:00:00"
     logger.debug("authenticate: calling omada.authorize_client mac=%s", effective_mac)
     omada.authorize_client(
@@ -47,9 +59,7 @@ def authenticate(
         gateway_mac=gateway_mac,
         vid=vid,
     )
-    logger.debug("authenticate: omada.authorize_client completed mac=%s", effective_mac)
-
-    logger.debug("authenticate: success user=%s", username)
+    logger.debug("authenticate: success user=%s mac=%s", username, mac)
     return token
 
 
@@ -58,11 +68,8 @@ def revoke(token: str) -> None:
     username = db.get_session_username(token)
     mac = db.pop_session(token)
     logger.debug("revoke: user=%s mac=%s", username, mac)
-    if username:
-        db.record_event('logout', username)
     if mac:
-        logger.debug("revoke: calling firewall.revoke mac=%s", mac)
+        if username:
+            db.remove_mac_session(username, mac)
         firewall.revoke(mac)
-        logger.debug("revoke: calling omada.unauthorize_client mac=%s", mac)
         omada.unauthorize_client(mac)
-        logger.debug("revoke: omada.unauthorize_client completed mac=%s", mac)

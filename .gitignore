@@ -24,3 +24,8 @@ dist-ssr
 *.sw?
 
 notes.md
+
+# Environment variables
+.env
+.env.*
+!.env.example

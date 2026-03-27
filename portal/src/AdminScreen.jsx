@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { listUsers, createUser, updateUser, deleteUser, updatePassword, logout, getStats } from './api'
+import { listUsers, createUser, updateUser, deleteUser, updatePassword, logout } from './api'
 
 const EMPTY_FORM = { username: '', password: '', first_name: '', last_name: '', tower_name: '', tower_number: '', block: '', flat_number: '' }
 
@@ -29,16 +29,6 @@ function Field({ label, value, onChange, type = 'text', required, autoComplete, 
   )
 }
 
-function StatCard({ label, value, color = 'blue' }) {
-  const colors = { blue: 'text-blue-600', green: 'text-green-600', purple: 'text-purple-600', orange: 'text-orange-500' }
-  return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-      <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">{label}</p>
-      <p className={`text-3xl font-bold ${colors[color]}`}>{value ?? '—'}</p>
-    </div>
-  )
-}
-
 function TopBar({ title, subtitle, onLogout, children }) {
   return (
     <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -57,9 +47,8 @@ function TopBar({ title, subtitle, onLogout, children }) {
 }
 
 export default function AdminScreen({ token, onLogout }) {
-  const [view, setView]       = useState('dashboard') // 'dashboard' | 'users' | 'form'
+  const [view, setView]       = useState('users') // 'users' | 'form'
   const [users, setUsers]     = useState([])
-  const [stats, setStats]     = useState(null)
   const [editing, setEditing] = useState(null)
   const [form, setForm]       = useState(EMPTY_FORM)
   const [search, setSearch]   = useState('')
@@ -74,15 +63,10 @@ export default function AdminScreen({ token, onLogout }) {
     onLogout()
   }
 
-  const fetchStats = useCallback(async () => {
-    try { setStats(await getStats(token)) } catch (err) { setError(err.message) }
-  }, [token])
-
   const fetchUsers = useCallback(async () => {
     try { setUsers(await listUsers(token)) } catch (err) { setError(err.message) }
   }, [token])
 
-  useEffect(() => { fetchStats() }, [fetchStats])
   useEffect(() => { if (view === 'users' || view === 'form') fetchUsers() }, [view, fetchUsers])
 
   const openNew = () => {
@@ -109,7 +93,7 @@ export default function AdminScreen({ token, onLogout }) {
         setSuccess(`User "${form.username}" created.`)
         setForm(EMPTY_FORM)
       }
-      fetchUsers(); fetchStats()
+      fetchUsers()
     } catch (err) {
       setError(err.message)
     } finally {
@@ -122,8 +106,8 @@ export default function AdminScreen({ token, onLogout }) {
     setBusy(true)
     try {
       await deleteUser(token, username)
-      fetchUsers(); fetchStats()
-      if (editing?.username === username) setView('users')
+    fetchUsers()
+    if (editing?.username === username) setView('users')
     } catch (err) {
       setError(err.message)
     } finally {
@@ -139,33 +123,10 @@ export default function AdminScreen({ token, onLogout }) {
       .some(v => v?.toLowerCase().includes(q))
   })
 
-  // ── Dashboard ──────────────────────────────────────────────────────────────
-  if (view === 'dashboard') return (
-    <div className="min-h-screen bg-gray-50">
-      <TopBar title="Dashboard" onLogout={handleLogout}>
-        <button onClick={() => { setView('users'); setError('') }}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-          Manage Users
-        </button>
-      </TopBar>
-
-      {error && <p className="text-red-500 text-xs text-center mt-4">{error}</p>}
-
-      <div className="p-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Users"     value={stats?.total_users}     color="blue"   />
-        <StatCard label="Active Sessions" value={stats?.active_sessions} color="green"  />
-        <StatCard label="Total Logins"    value={stats?.total_logins}    color="purple" />
-        <StatCard label="Total Logouts"   value={stats?.total_logouts}   color="orange" />
-      </div>
-    </div>
-  )
-
   // ── Users list ─────────────────────────────────────────────────────────────
   if (view === 'users') return (
     <div className="min-h-screen bg-gray-50">
       <TopBar title="Users" subtitle={`${filteredUsers.length} of ${users.length}`} onLogout={handleLogout}>
-        <button onClick={() => { setView('dashboard'); setError('') }}
-          className="text-sm text-gray-400 hover:text-gray-600">← Dashboard</button>
         <button onClick={openNew}
           className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
           + Add User

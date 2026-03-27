@@ -8,7 +8,9 @@ from fastapi import HTTPException
 import auth
 import config
 import db
+import firewall
 import log
+import omada
 
 logger = log.get("otp")
 
@@ -51,14 +53,26 @@ def verify_otp_and_authenticate(
 ) -> str:
     if not db.verify_otp(mobile, code):
         raise HTTPException(status_code=401, detail="Invalid or expired OTP")
-    token = secrets.token_urlsafe(32)
+
     mac = auth._validate_mac(mac_address) if mac_address else None
-    db.create_session(token, mobile, mac)
-    db.record_event("login", mobile)
+
     if mac:
-        import firewall
+        active_count = db.get_active_mac_count(mobile)
+        if active_count >= config.MAX_MACS_PER_USER:
+            oldest = db.get_oldest_mac_session(mobile)
+            if oldest:
+                logger.debug("verify_otp_and_authenticate: evicting oldest mac=%s for mobile=%s", oldest["mac"], mobile)
+                db.pop_session(oldest["token"])
+                db.remove_mac_session(mobile, oldest["mac"])
+                firewall.revoke(oldest["mac"])
+                omada.unauthorize_client(oldest["mac"])
+
+    token = secrets.token_urlsafe(32)
+    db.create_session(token, mobile, mac)
+    if mac:
+        db.add_mac_session(mobile, mac, token)
         firewall.allow(mac)
-    import omada
+
     omada.authorize_client(
         mac or "00:00:00:00:00:00",
         ap_mac=ap_mac or "00:00:00:00:00:00",

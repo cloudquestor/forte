@@ -34,6 +34,13 @@ def init():
                 block        TEXT NOT NULL DEFAULT '',
                 flat_number  INTEGER
             );
+            CREATE TABLE IF NOT EXISTS mac_sessions (
+                username   TEXT NOT NULL,
+                mac        TEXT NOT NULL,
+                token      TEXT NOT NULL,
+                created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+                PRIMARY KEY (username, mac)
+            );
             CREATE TABLE IF NOT EXISTS sessions (
                 token    TEXT PRIMARY KEY,
                 username TEXT NOT NULL,
@@ -43,12 +50,6 @@ def init():
                 mobile     TEXT PRIMARY KEY,
                 code       TEXT NOT NULL,
                 expires_at INTEGER NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS events (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                event_type TEXT NOT NULL,
-                username   TEXT NOT NULL,
-                ts         INTEGER NOT NULL DEFAULT (strftime('%s','now'))
             );
         """)
         existing = {r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
@@ -150,31 +151,43 @@ def user_exists(username: str) -> bool:
         return bool(conn.execute("SELECT 1 FROM users WHERE username = ?", (username,)).fetchone())
 
 
+def get_active_mac_count(username: str) -> int:
+    with get_conn() as conn:
+        return conn.execute(
+            "SELECT COUNT(*) FROM mac_sessions WHERE username = ?", (username,)
+        ).fetchone()[0]
+
+
+def get_oldest_mac_session(username: str) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT mac, token FROM mac_sessions WHERE username = ? ORDER BY created_at ASC LIMIT 1",
+            (username,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def add_mac_session(username: str, mac: str, token: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO mac_sessions (username, mac, token) VALUES (?, ?, ?)",
+            (username, mac, token),
+        )
+
+
+def remove_mac_session(username: str, mac: str) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "DELETE FROM mac_sessions WHERE username = ? AND mac = ?", (username, mac)
+        )
+
+
 def create_session(token: str, username: str, mac: str | None):
     with get_conn() as conn:
         conn.execute(
             "INSERT INTO sessions (token, username, mac) VALUES (?, ?, ?)",
             (token, username, mac),
         )
-
-
-def record_event(event_type: str, username: str) -> None:
-    with get_conn() as conn:
-        conn.execute("INSERT INTO events (event_type, username) VALUES (?, ?)", (event_type, username))
-
-
-def get_stats() -> dict:
-    with get_conn() as conn:
-        total_users    = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        active_sessions = conn.execute("SELECT COUNT(*) FROM sessions").fetchone()[0]
-        total_logins   = conn.execute("SELECT COUNT(*) FROM events WHERE event_type='login'").fetchone()[0]
-        total_logouts  = conn.execute("SELECT COUNT(*) FROM events WHERE event_type='logout'").fetchone()[0]
-    return {
-        "total_users": total_users,
-        "active_sessions": active_sessions,
-        "total_logins": total_logins,
-        "total_logouts": total_logouts,
-    }
 
 
 def pop_session(token: str) -> str | None:

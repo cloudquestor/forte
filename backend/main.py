@@ -56,7 +56,6 @@ def login(body: LoginRequest):
         ap_mac=body.ap_mac, ssid_name=body.ssid_name, radio_id=body.radio_id,
         gateway_mac=body.gateway_mac, vid=body.vid,
     )
-    db.record_event('policy_accepted', body.username)
     logger.debug("POST /api/auth/login success user=%s", body.username)
     return {"access_token": token, "token_type": "bearer"}
 
@@ -103,7 +102,6 @@ def otp_verify(body: OtpVerifyRequest):
         ap_mac=body.ap_mac, ssid_name=body.ssid_name, radio_id=body.radio_id,
         gateway_mac=body.gateway_mac, vid=body.vid,
     )
-    db.record_event("policy_accepted", body.mobile)
     logger.debug("POST /api/auth/otp/verify success mobile=%s", body.mobile)
     return {"access_token": token, "token_type": "bearer"}
 
@@ -122,12 +120,6 @@ class CreateUserRequest(BaseModel):
     tower_number: int | None = None
     block:        str = ''
     flat_number:  int | None = None
-
-
-@app.get("/api/stats")
-def get_stats(authorization: str = Header(...)):
-    _require_admin(authorization)
-    return db.get_stats()
 
 
 @app.get("/api/users")

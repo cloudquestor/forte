@@ -66,17 +66,6 @@ export async function logout(token) {
   })
 }
 
-export async function getStats(token) {
-  const res = await fetch(`${config.apiUrl}/api/stats`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) {
-    const { detail } = await res.json().catch(() => ({ detail: 'Failed to fetch stats' }))
-    throw new Error(detail)
-  }
-  return res.json()
-}
-
 export async function listUsers(token) {
   const res = await fetch(`${config.apiUrl}/api/users`, {
     headers: { Authorization: `Bearer ${token}` },
