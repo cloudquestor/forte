@@ -5,7 +5,8 @@ const config = {
   defaultRedirect: rc.defaultRedirect ?? '/status?status=success',
   appName:         rc.appName         ?? 'Forte WiFi',
   appTagline:      rc.appTagline      ?? 'Sign in to access the network',
-  policyText:      rc.policyText      ?? 'By signing in you agree to the network usage policy.',
+  policyText:      rc.policyText      ?? 'By signing in you agree to the [[policy]].',
+  policyUrl:       rc.policyUrl       ?? '/policy',
   tokenKey:        rc.tokenKey        ?? 'forte_token',
 }
 
