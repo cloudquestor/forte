@@ -8,8 +8,8 @@ volumes:
 services:
 
   backend:
-    #image: ghcr.io/cloudquestor/forte-backend:latest
-    build: ./backend
+    image: ghcr.io/cloudquestor/forte-backend:latest
+    #build: ./backend
     container_name: forte-backend
     restart: unless-stopped
     networks:
@@ -45,8 +45,8 @@ services:
       retries: 3
 
   portal:
-    #image: ghcr.io/cloudquestor/forte-portal:latest
-    build: ./portal
+    image: ghcr.io/cloudquestor/forte-portal:latest
+    #build: ./portal
     container_name: forte-portal
     restart: unless-stopped
     networks:
