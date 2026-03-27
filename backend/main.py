@@ -5,6 +5,7 @@ import auth
 import config
 import db
 import log
+import otp as otp_module
 
 logger = log.get("main")
 
@@ -67,6 +68,44 @@ def logout(authorization: str = Header(...)):
     auth.revoke(token)
     logger.debug("DELETE /api/auth/logout success")
     return {"status": "logged out"}
+
+
+class OtpRequestBody(BaseModel):
+    mobile: str
+
+
+class OtpVerifyRequest(BaseModel):
+    mobile:      str
+    code:        str
+    mac_address: str | None = None
+    ap_mac:      str | None = None
+    ssid_name:   str | None = None
+    radio_id:    str | None = None
+    gateway_mac: str | None = None
+    vid:         str | None = None
+    policy_accepted: bool = False
+
+
+@app.post("/api/auth/otp/request")
+def otp_request(body: OtpRequestBody):
+    logger.debug("POST /api/auth/otp/request mobile=%s", body.mobile)
+    otp_module.request_otp(body.mobile)
+    return {"status": "otp sent"}
+
+
+@app.post("/api/auth/otp/verify")
+def otp_verify(body: OtpVerifyRequest):
+    if not body.policy_accepted:
+        raise HTTPException(status_code=400, detail="You must accept the network usage policy")
+    logger.debug("POST /api/auth/otp/verify mobile=%s", body.mobile)
+    token = otp_module.verify_otp_and_authenticate(
+        body.mobile, body.code, body.mac_address,
+        ap_mac=body.ap_mac, ssid_name=body.ssid_name, radio_id=body.radio_id,
+        gateway_mac=body.gateway_mac, vid=body.vid,
+    )
+    db.record_event("policy_accepted", body.mobile)
+    logger.debug("POST /api/auth/otp/verify success mobile=%s", body.mobile)
+    return {"access_token": token, "token_type": "bearer"}
 
 
 @app.get("/health")
