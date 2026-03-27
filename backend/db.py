@@ -39,6 +39,11 @@ def init():
                 username TEXT NOT NULL,
                 mac      TEXT
             );
+            CREATE TABLE IF NOT EXISTS otps (
+                mobile     TEXT PRIMARY KEY,
+                code       TEXT NOT NULL,
+                expires_at INTEGER NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS events (
                 id         INTEGER PRIMARY KEY AUTOINCREMENT,
                 event_type TEXT NOT NULL,
@@ -178,6 +183,32 @@ def pop_session(token: str) -> str | None:
         if row:
             conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
     return row["mac"] if row else None
+
+
+def upsert_otp(mobile: str, code: str, expires_at: int) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO otps (mobile, code, expires_at) VALUES (?, ?, ?)"
+            " ON CONFLICT(mobile) DO UPDATE SET code=excluded.code, expires_at=excluded.expires_at",
+            (mobile, code, expires_at),
+        )
+
+
+def verify_otp(mobile: str, code: str) -> bool:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT code, expires_at FROM otps WHERE mobile = ?", (mobile,)
+        ).fetchone()
+        if not row:
+            return False
+        import time
+        if time.time() > row["expires_at"]:
+            conn.execute("DELETE FROM otps WHERE mobile = ?", (mobile,))
+            return False
+        if row["code"] != code:
+            return False
+        conn.execute("DELETE FROM otps WHERE mobile = ?", (mobile,))
+    return True
 
 
 def get_session_username(token: str) -> str | None:

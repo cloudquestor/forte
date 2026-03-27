@@ -36,6 +36,10 @@ services:
       OMADA_SITE_ID: ${OMADA_SITE_ID:-Default}
       OMADA_USERNAME: ${OMADA_USERNAME:-}
       OMADA_PASSWORD: ${OMADA_PASSWORD:-}
+      FORTE_MSG91_API_KEY: ${FORTE_MSG91_API_KEY:-}
+      FORTE_MSG91_TEMPLATE_ID: ${FORTE_MSG91_TEMPLATE_ID:-}
+      FORTE_OTP_DUMMY: ${FORTE_OTP_DUMMY:-true}
+      FORTE_OTP_DUMMY_CODE: ${FORTE_OTP_DUMMY_CODE:-123456}
     volumes:
       - forte-data:/data
     healthcheck:

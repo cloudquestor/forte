@@ -37,6 +37,13 @@ NFT_SET:   str = os.getenv("FORTE_NFT_SET",   "allowed_macs")
 # When set, nft commands are run inside this Docker container (test rig mode)
 ROUTER_CONTAINER: str | None = os.getenv("FORTE_ROUTER_CONTAINER")
 
+# MSG91 OTP integration (optional — if unset, dummy OTP flow is used)
+MSG91_API_KEY: str | None = os.getenv("FORTE_MSG91_API_KEY")
+MSG91_TEMPLATE_ID: str | None = os.getenv("FORTE_MSG91_TEMPLATE_ID")
+OTP_TTL_SECONDS: int = 300  # 5 minutes
+OTP_DUMMY_ENABLED: bool = os.getenv("FORTE_OTP_DUMMY", "true").lower() in ("1", "true", "yes")
+OTP_DUMMY_CODE: str = os.getenv("FORTE_OTP_DUMMY_CODE", "123456")
+
 # Omada controller integration (optional)
 # OMADA_CONTROLLER_ID is the identifier in the controller URL path
 # e.g. https://192.168.1.1:8043/abcdefghijklmnopqrstuvwxyzabcdef/ → ID is abcdefghijklmnopqrstuvwxyzabcdef

@@ -23,6 +23,42 @@ export async function login(username, password, macAddress, omadaParams, policyA
   return res.json()
 }
 
+export async function requestOtp(mobile) {
+  const res = await fetch(`${config.apiUrl}/api/auth/otp/request`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mobile }),
+  })
+  if (!res.ok) {
+    const { detail } = await res.json().catch(() => ({ detail: 'Failed to send OTP' }))
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
+export async function verifyOtp(mobile, code, macAddress, omadaParams, policyAccepted = false) {
+  const res = await fetch(`${config.apiUrl}/api/auth/otp/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      mobile,
+      code,
+      mac_address:     macAddress ?? null,
+      ap_mac:          omadaParams?.apMac ?? null,
+      ssid_name:       omadaParams?.ssidName ?? null,
+      radio_id:        omadaParams?.radioId ?? null,
+      gateway_mac:     omadaParams?.gatewayMac ?? null,
+      vid:             omadaParams?.vid ?? null,
+      policy_accepted: policyAccepted,
+    }),
+  })
+  if (!res.ok) {
+    const { detail } = await res.json().catch(() => ({ detail: 'OTP verification failed' }))
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
 export async function logout(token) {
   await fetch(`${config.apiUrl}/api/auth/logout`, {
     method: 'DELETE',
