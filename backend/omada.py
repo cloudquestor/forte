@@ -81,7 +81,15 @@ def _do_authorize(session: requests.Session, csrf: str, payload: dict) -> dict:
     )
     logger.debug("_do_authorize: response status=%s body=%s", res.status_code, res.text)
     res.raise_for_status()
-    return res.json()
+    try:
+        return res.json()
+    except ValueError:
+        logger.debug("_do_authorize: non-JSON response (stale session), body=%s", res.text[:200])
+        raise _StaleSession()
+
+
+class _StaleSession(Exception):
+    pass
 
 
 def authorize_client(
@@ -122,7 +130,13 @@ def authorize_client(
     logger.debug("authorize_client: payload=%s", payload)
     try:
         session, csrf = _login()
-        data = _do_authorize(session, csrf, payload)
+        try:
+            data = _do_authorize(session, csrf, payload)
+        except _StaleSession:
+            logger.debug("authorize_client: stale session, resetting and retrying")
+            _reset()
+            session, csrf = _login()
+            data = _do_authorize(session, csrf, payload)
         if data.get("errorCode") != 0:
             if data.get("errorCode") == -41501:
                 logger.debug("authorize_client: client not found on controller (test mode), ignoring")
