@@ -3,6 +3,8 @@ name: Publish Images
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*'
 
 env:
   REGISTRY: ghcr.io
@@ -18,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ✅ Generate short SHA (7 chars)
+      # ✅ Generate short SHA
       - name: Generate short SHA
         run: echo "SHORT_SHA=${GITHUB_SHA::7}" >> $GITHUB_ENV
 
@@ -44,6 +46,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-backend:sha-${{ env.SHORT_SHA }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-backend:main
             ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-backend:latest
+            ${{ startsWith(github.ref, 'refs/tags/v') && format('{0}/{1}/forte-backend:{2}', env.REGISTRY, env.OWNER, github.ref_name) || '' }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -63,6 +66,7 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-portal:sha-${{ env.SHORT_SHA }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-portal:main
             ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-portal:latest
+            ${{ startsWith(github.ref, 'refs/tags/v') && format('{0}/{1}/forte-portal:{2}', env.REGISTRY, env.OWNER, github.ref_name) || '' }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
