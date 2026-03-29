@@ -43,7 +43,23 @@ function Tab({ label, active, onClick }) {
   )
 }
 
-function PasswordForm({ onSuccess, policyAccepted }) {
+function PolicyCheckbox({ accepted, onChange }) {
+  return (
+    <label className="flex items-start gap-2 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={accepted}
+        onChange={(e) => onChange(e.target.checked)}
+        className="mt-0.5 accent-blue-600"
+      />
+      <span className="text-xs text-gray-500">
+        {renderPolicyText(config.policyText, config.policyUrl)}
+      </span>
+    </label>
+  )
+}
+
+function PasswordForm({ onSuccess, policyAccepted, setPolicyAccepted }) {
   const [form, setForm]   = useState({ username: '', password: '' })
   const [error, setError] = useState('')
   const [busy, setBusy]   = useState(false)
@@ -92,6 +108,7 @@ function PasswordForm({ onSuccess, policyAccepted }) {
         />
       </div>
       {error && <p className="text-red-500 text-xs">{error}</p>}
+      <PolicyCheckbox accepted={policyAccepted} onChange={setPolicyAccepted} />
       <button
         type="submit"
         disabled={busy || !policyAccepted}
@@ -103,7 +120,7 @@ function PasswordForm({ onSuccess, policyAccepted }) {
   )
 }
 
-function OtpForm({ onSuccess, policyAccepted }) {
+function OtpForm({ onSuccess, policyAccepted, setPolicyAccepted }) {
   const [mobile, setMobile] = useState('')
   const [code, setCode]     = useState('')
   const [step, setStep]     = useState('mobile')
@@ -155,6 +172,7 @@ function OtpForm({ onSuccess, policyAccepted }) {
           />
         </div>
         {error && <p className="text-red-500 text-xs">{error}</p>}
+        <PolicyCheckbox accepted={policyAccepted} onChange={setPolicyAccepted} />
         <button
           type="submit"
           disabled={busy || !policyAccepted}
@@ -184,6 +202,7 @@ function OtpForm({ onSuccess, policyAccepted }) {
         />
       </div>
       {error && <p className="text-red-500 text-xs">{error}</p>}
+      <PolicyCheckbox accepted={policyAccepted} onChange={setPolicyAccepted} />
       <button
         type="submit"
         disabled={busy || !policyAccepted}
@@ -284,20 +303,9 @@ export default function LoginScreen({ adminMode, onLogin }) {
         </div>
 
         {tab === 'password'
-              ? <PasswordForm onSuccess={handleUserSuccess} policyAccepted={policyAccepted} />
-              : <OtpForm onSuccess={handleUserSuccess} policyAccepted={policyAccepted} />
+              ? <PasswordForm onSuccess={handleUserSuccess} policyAccepted={policyAccepted} setPolicyAccepted={setPolicyAccepted} />
+              : <OtpForm onSuccess={handleUserSuccess} policyAccepted={policyAccepted} setPolicyAccepted={setPolicyAccepted} />
             }
-            <label className="flex items-start gap-2 cursor-pointer mt-4">
-              <input
-                type="checkbox"
-                checked={policyAccepted}
-                onChange={(e) => setPolicyAccepted(e.target.checked)}
-                className="mt-0.5 accent-blue-600"
-              />
-              <span className="text-xs text-gray-500">
-                {renderPolicyText(config.policyText, config.policyUrl)}
-              </span>
-            </label>
             <p className="text-center text-xs text-gray-400 mt-4">
               {tab === 'password' ? (
                 <>Don't have a user account?{' '}
