@@ -5,6 +5,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --silent
 COPY . .
+RUN mkdir -p public && cp logo/*.png public/ 2>/dev/null || true
 RUN npm run build
 
 # ── Stage 2: serve ────────────────────────────────────────────────────────────

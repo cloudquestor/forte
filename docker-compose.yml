@@ -9,7 +9,7 @@ services:
 
   backend:
     image: ghcr.io/cloudquestor/forte-backend:latest
-    #build: ./backend
+    # build: ./backend
     container_name: forte-backend
     restart: unless-stopped
     networks:
@@ -40,6 +40,10 @@ services:
       FORTE_MSG91_TEMPLATE_ID: ${FORTE_MSG91_TEMPLATE_ID:-}
       FORTE_OTP_DUMMY: ${FORTE_OTP_DUMMY:-true}
       FORTE_OTP_DUMMY_CODE: ${FORTE_OTP_DUMMY_CODE:-123456}
+      FORTE_BUILDINGS: ${FORTE_BUILDINGS:-}
+      FORTE_TOWER_NUMBERS: ${FORTE_TOWER_NUMBERS:-}
+      FORTE_BLOCKS: ${FORTE_BLOCKS:-}
+      FORTE_FLOORS: ${FORTE_FLOORS:-}
     volumes:
       - forte-data:/data
     healthcheck:
@@ -50,7 +54,7 @@ services:
 
   portal:
     image: ghcr.io/cloudquestor/forte-portal:latest
-    #build: ./portal
+    # build: ./portal
     container_name: forte-portal
     restart: unless-stopped
     networks:

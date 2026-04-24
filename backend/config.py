@@ -44,6 +44,15 @@ OTP_TTL_SECONDS: int = 300  # 5 minutes
 OTP_DUMMY_ENABLED: bool = os.getenv("FORTE_OTP_DUMMY", "true").lower() in ("1", "true", "yes")
 OTP_DUMMY_CODE: str = os.getenv("FORTE_OTP_DUMMY_CODE", "123456")
 
+def _parse_list(env_key: str, default: list[str]) -> list[str]:
+    raw = os.getenv(env_key, '').strip()
+    return [v.strip() for v in raw.split(',') if v.strip()] if raw else default
+
+BUILDINGS: list[str]    = _parse_list('FORTE_BUILDINGS', [])
+TOWER_NUMBERS: list[str] = _parse_list('FORTE_TOWER_NUMBERS', [])
+BLOCKS: list[str]       = _parse_list('FORTE_BLOCKS', [])
+FLOORS: list[str]       = _parse_list('FORTE_FLOORS', [])
+
 # Omada controller integration (optional)
 # OMADA_CONTROLLER_ID is the identifier in the controller URL path
 # e.g. https://192.168.1.1:8043/abcdefghijklmnopqrstuvwxyzabcdef/ → ID is abcdefghijklmnopqrstuvwxyzabcdef
