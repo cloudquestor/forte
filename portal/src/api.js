@@ -36,13 +36,14 @@ export async function requestOtp(mobile) {
   return res.json()
 }
 
-export async function verifyOtp(mobile, msg91Token, macAddress, omadaParams, policyAccepted = false) {
+export async function verifyOtp(mobile, otpCode, macAddress, omadaParams, policyAccepted = false, isMsg91Token = false) {
   const res = await fetch(`${config.apiUrl}/api/auth/otp/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       mobile,
-      msg91_token:     msg91Token,
+      msg91_token:     isMsg91Token ? otpCode : null,
+      code:            isMsg91Token ? null : otpCode,
       mac_address:     macAddress ?? null,
       ap_mac:          omadaParams?.apMac ?? null,
       ssid_name:       omadaParams?.ssidName ?? null,

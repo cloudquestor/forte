@@ -151,7 +151,8 @@ function OtpForm({ onSuccess, policyAccepted, setPolicyAccepted }) {
     onSuccessRef.current = async (data) => {
       setBusy(true)
       try {
-        const { access_token } = await verifyOtp(mobileRef.current, data['access-token'], getMacAddress(), getOmadaParams(), policyRef.current)
+        const token = data.message ?? data['access-token']
+        const { access_token } = await verifyOtp(mobileRef.current, token, getMacAddress(), getOmadaParams(), policyRef.current, true)
         onSuccess(access_token)
       } catch (err) {
         setError(err.message)
@@ -312,7 +313,7 @@ function SignupForm({ onBack }) {
   useEffect(() => {
     if (!useMsg91) return
     // Update the global callbacks so the single widget instance routes to this form
-    window.__msg91Success = (data) => { set('msg91Token')(data['access-token']); setStep('details') }
+    window.__msg91Success = (data) => { set('msg91Token')(data.message ?? data['access-token']); setStep('details') }
     window.__msg91Failure = (err) => { setError(err.message || 'OTP verification failed'); setBusy(false) }
     return () => { window.__msg91Success = null; window.__msg91Failure = null }
   }, [useMsg91])
@@ -459,7 +460,7 @@ function ForgotScreen({ onBack }) {
 
   useEffect(() => {
     if (!useMsg91) return
-    window.__msg91Success = (data) => { setMsg91Token(data['access-token']); setStep('reset') }
+    window.__msg91Success = (data) => { setMsg91Token(data.message ?? data['access-token']); setStep('reset') }
     window.__msg91Failure = (err) => { setError(err.message || 'OTP verification failed'); setBusy(false) }
     return () => { window.__msg91Success = null; window.__msg91Failure = null }
   }, [useMsg91])
