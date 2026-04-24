@@ -1,17 +1,17 @@
 import sqlite3
 import os
-import bcrypt
+import hashlib
 import config
 
 DB_PATH = os.getenv("FORTE_DB_PATH", "/data/forte.db")
 
 
 def hash_password(plain: str) -> str:
-    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt()).decode()
+    return hashlib.sha256(plain.encode()).hexdigest()
 
 
 def _check_password(plain: str, hashed: str) -> bool:
-    return bcrypt.checkpw(plain.encode(), hashed.encode())
+    return hashlib.sha256(plain.encode()).hexdigest() == hashed
 
 
 def get_conn() -> sqlite3.Connection:
@@ -25,14 +25,9 @@ def init():
     with get_conn() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS users (
-                username     TEXT PRIMARY KEY,
-                password     TEXT NOT NULL,
-                first_name   TEXT NOT NULL DEFAULT '',
-                last_name    TEXT NOT NULL DEFAULT '',
-                tower_name   TEXT,
-                tower_number INTEGER,
-                block        TEXT NOT NULL DEFAULT '',
-                flat_number  INTEGER
+                username TEXT PRIMARY KEY,
+                password TEXT NOT NULL,
+                mobile   TEXT
             );
             CREATE TABLE IF NOT EXISTS sessions (
                 token    TEXT PRIMARY KEY,
@@ -52,24 +47,8 @@ def init():
             );
         """)
         existing = {r[1] for r in conn.execute("PRAGMA table_info(users)").fetchall()}
-        migrations = [
-            ('first_name',   'TEXT NOT NULL DEFAULT ""'),
-            ('last_name',    'TEXT NOT NULL DEFAULT ""'),
-            ('tower_name',   'TEXT'),
-            ('tower_number', 'INTEGER'),
-            ('block',        'TEXT NOT NULL DEFAULT ""'),
-            ('flat_number',  'INTEGER'),
-            ('mobile',       'TEXT'),
-        ]
-        for col, typedef in migrations:
-            if col not in existing:
-                conn.execute(f"ALTER TABLE users ADD COLUMN {col} {typedef}")
-        # Rename old columns if present
-        if 'tower' in existing and 'tower_number' not in existing:
-            conn.execute("ALTER TABLE users RENAME COLUMN tower TO tower_number")
-        if 'flat' in existing and 'flat_number' not in existing:
-            conn.execute("ALTER TABLE users RENAME COLUMN flat TO flat_number")
-        # Unique index on mobile (non-null only) — safe to run repeatedly
+        if 'mobile' not in existing:
+            conn.execute("ALTER TABLE users ADD COLUMN mobile TEXT")
         conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS uq_users_mobile ON users(mobile) WHERE mobile IS NOT NULL"
         )
@@ -90,10 +69,8 @@ def _seed_users():
                     (username, hash_password(plain)),
                 )
             else:
-                # Migrate plaintext passwords left over from before hashing was introduced
-                try:
-                    bcrypt.checkpw(b"test", row["password"].encode())
-                except Exception:
+                # Re-hash if stored value is not a 64-char hex SHA-256 (e.g. old bcrypt hash)
+                if len(row["password"]) != 64:
                     conn.execute(
                         "UPDATE users SET password = ? WHERE username = ?",
                         (hash_password(plain), username),
@@ -103,7 +80,7 @@ def _seed_users():
 def list_users() -> list[dict]:
     with get_conn() as conn:
         rows = conn.execute(
-            "SELECT username, first_name, last_name, tower_name, tower_number, block, flat_number, mobile FROM users ORDER BY username"
+            "SELECT username, mobile FROM users ORDER BY username"
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -129,26 +106,12 @@ def verify_user_password(username: str, plain: str) -> bool:
     return bool(row and _check_password(plain, row["password"]))
 
 
-def create_user(username: str, plain: str, first_name: str = '', last_name: str = '',
-                tower_name: str | None = None, tower_number: int | None = None,
-                block: str = '', flat_number: int | None = None,
-                mobile: str | None = None) -> None:
+def create_user(username: str, plain: str, mobile: str | None = None) -> None:
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO users (username, password, first_name, last_name, tower_name, tower_number, block, flat_number, mobile) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (username, hash_password(plain), first_name, last_name, tower_name, tower_number, block, flat_number, mobile),
+            "INSERT INTO users (username, password, mobile) VALUES (?, ?, ?)",
+            (username, hash_password(plain), mobile),
         )
-
-
-def update_user(username: str, first_name: str, last_name: str,
-                tower_name: str | None, tower_number: int | None,
-                block: str, flat_number: int | None) -> bool:
-    with get_conn() as conn:
-        cur = conn.execute(
-            "UPDATE users SET first_name=?, last_name=?, tower_name=?, tower_number=?, block=?, flat_number=? WHERE username=?",
-            (first_name, last_name, tower_name, tower_number, block, flat_number, username),
-        )
-    return cur.rowcount > 0
 
 
 def mobile_exists(mobile: str) -> bool:
@@ -159,7 +122,7 @@ def mobile_exists(mobile: str) -> bool:
 def find_user_by_mobile(mobile: str) -> dict | None:
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT username, first_name, last_name FROM users WHERE mobile = ?", (mobile,)
+            "SELECT username FROM users WHERE mobile = ?", (mobile,)
         ).fetchone()
     return dict(row) if row else None
 

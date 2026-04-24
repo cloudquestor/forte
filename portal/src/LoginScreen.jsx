@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { login, requestOtp, verifyOtp, signupRequestOtp, signupVerifyAndCreate, lookupByMobile, resetPasswordRequestOtp, resetPassword, getOptions } from './api'
+import { useState, useEffect, useRef } from 'react'
+import { login, requestOtp, verifyOtp, signupRequestOtp, signupVerifyAndCreate, resetPasswordRequestOtp, resetPassword } from './api'
 import config from './config'
 
 function getRedirectUrl() {
@@ -82,17 +82,6 @@ function OtpInput({ value, onChange }) {
   )
 }
 
-function SelectField({ label, value, onChange, options, placeholder }) {
-  return (
-    <Field label={label}>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
-        <option value="">{placeholder}</option>
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </Field>
-  )
-}
-
 function PolicyCheckbox({ accepted, onChange }) {
   return (
     <label className="flex items-start gap-2 cursor-pointer">
@@ -123,6 +112,24 @@ function BackBtn({ onClick, label = '← Back' }) {
   )
 }
 
+// ── MSG91 widget loader ──────────────────────────────────────────────────
+
+let msg91ScriptReady = false
+let msg91ScriptLoading = null
+let msg91Initialized = false
+
+function loadMsg91Script() {
+  if (msg91ScriptReady) return Promise.resolve()
+  if (msg91ScriptLoading) return msg91ScriptLoading
+  msg91ScriptLoading = new Promise((resolve) => {
+    const s = document.createElement('script')
+    s.src = 'https://verify.msg91.com/otp-provider.js'
+    s.onload = () => { msg91ScriptReady = true; resolve() }
+    document.head.appendChild(s)
+  })
+  return msg91ScriptLoading
+}
+
 // ── OTP login ────────────────────────────────────────────────────────────────
 
 function OtpForm({ onSuccess, policyAccepted, setPolicyAccepted }) {
@@ -131,15 +138,59 @@ function OtpForm({ onSuccess, policyAccepted, setPolicyAccepted }) {
   const [step, setStep]     = useState('mobile')
   const [error, setError]   = useState('')
   const [busy, setBusy]     = useState(false)
+  const useMsg91 = !!(config.msg91WidgetId && config.msg91TokenAuth)
+  const policyRef = useRef(policyAccepted)
+  const mobileRef = useRef(mobile)
+  const onSuccessRef = useRef(null)
+  const onFailureRef = useRef(null)
+  useEffect(() => { policyRef.current = policyAccepted }, [policyAccepted])
+  useEffect(() => { mobileRef.current = mobile }, [mobile])
+
+  useEffect(() => {
+    if (!useMsg91) return
+    onSuccessRef.current = async (data) => {
+      setBusy(true)
+      try {
+        const { access_token } = await verifyOtp(mobileRef.current, data['access-token'], getMacAddress(), getOmadaParams(), policyRef.current)
+        onSuccess(access_token)
+      } catch (err) {
+        setError(err.message)
+        setBusy(false)
+      }
+    }
+    onFailureRef.current = (err) => { setError(err.message || 'OTP verification failed'); setBusy(false) }
+    // Set globals so signup/forgot screens can also receive callbacks
+    window.__msg91Success = (data) => onSuccessRef.current?.(data)
+    window.__msg91Failure = (err)  => onFailureRef.current?.(err)
+
+    if (msg91Initialized) return
+    msg91Initialized = true
+    loadMsg91Script().then(() => {
+      if (window.initSendOTP) {
+        window.initSendOTP({
+          widgetId:        config.msg91WidgetId,
+          tokenAuth:       config.msg91TokenAuth,
+          exposeMethods:   true,
+          captchaRenderId: 'msg91-captcha',
+          success: (data) => window.__msg91Success?.(data),
+          failure: (err)  => window.__msg91Failure?.(err),
+        })
+      }
+    })
+  }, [useMsg91])
 
   const handleRequestOtp = async (e) => {
     e.preventDefault()
     if (!isValidMobile(mobile)) { setError('Enter a valid 10-digit mobile number'); return }
-    setError('')
-    setBusy(true)
+    setError(''); setBusy(true)
     try {
-      await requestOtp(mobile)
-      setStep('code')
+      if (useMsg91) {
+        window.sendOtp(`91${mobile}`)
+        setStep('code')
+      } else {
+        await requestOtp(mobile)
+        setStep('code')
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -147,17 +198,17 @@ function OtpForm({ onSuccess, policyAccepted, setPolicyAccepted }) {
     }
   }
 
-  const handleVerifyOtp = async (e) => {
+  const handleVerifyOtp = (e) => {
     e.preventDefault()
     setError('')
     setBusy(true)
-    try {
-      const { access_token } = await verifyOtp(mobile, code, getMacAddress(), getOmadaParams(), policyAccepted)
-      onSuccess(access_token)
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setBusy(false)
+    if (useMsg91) {
+      window.verifyOtp(code)
+      // busy stays true — success/failure callbacks handle outcome
+    } else {
+      verifyOtp(mobile, code, getMacAddress(), getOmadaParams(), policyAccepted)
+        .then(({ access_token }) => onSuccess(access_token))
+        .catch(err => { setError(err.message); setBusy(false) })
     }
   }
 
@@ -167,6 +218,7 @@ function OtpForm({ onSuccess, policyAccepted, setPolicyAccepted }) {
         <Field label="Mobile Number">
           <MobileInput value={mobile} onChange={setMobile} />
         </Field>
+        <div id="msg91-captcha" />
         {error && <p className="text-red-500 text-xs">{error}</p>}
         <PolicyCheckbox accepted={policyAccepted} onChange={setPolicyAccepted} />
         <SubmitBtn busy={busy} disabled={!policyAccepted || mobile.length !== 10} label="Send OTP" busyLabel="Sending…" />
@@ -183,7 +235,11 @@ function OtpForm({ onSuccess, policyAccepted, setPolicyAccepted }) {
       {error && <p className="text-red-500 text-xs">{error}</p>}
       <PolicyCheckbox accepted={policyAccepted} onChange={setPolicyAccepted} />
       <SubmitBtn busy={busy} disabled={!policyAccepted || code.length !== 6} label="Verify & Sign In" busyLabel="Verifying…" />
-      <BackBtn onClick={() => { setStep('mobile'); setCode(''); setError('') }} label="← Change number" />
+      <div className="flex justify-between text-xs pt-1">
+        <button type="button" onClick={() => useMsg91 ? window.retryOtp() : requestOtp(mobile).catch(() => {})}
+                className="text-brand-600 hover:text-brand-800 transition-colors">Resend OTP</button>
+        <BackBtn onClick={() => { setStep('mobile'); setCode(''); setError('') }} label="← Change number" />
+      </div>
     </form>
   )
 }
@@ -241,15 +297,9 @@ function PasswordForm({ onSuccess, policyAccepted, setPolicyAccepted, onSignup, 
 
 // ── Signup (OTP-verified, mobile = username) ─────────────────────────────────
 
-const EMPTY_SIGNUP = { mobile: '', code: '', password: '', confirm: '', first_name: '', last_name: '', tower_name: '', tower_number: '', block: '', floor: '', flat_number: '' }
+const EMPTY_SIGNUP = { mobile: '', code: '', msg91Token: '', password: '', confirm: '' }
 
-function flatsForFloor(floor) {
-  if (!floor) return []
-  if (floor === 'PH') return ['PH01', 'PH02', 'PH03', 'PH04']
-  return ['01', '02', '03', '04'].map(n => `${floor}${n}`)
-}
-
-function SignupForm({ onBack, options }) {
+function SignupForm({ onBack }) {
   const [form, setForm]       = useState(EMPTY_SIGNUP)
   const [step, setStep]       = useState('mobile')
   const [error, setError]     = useState('')
@@ -257,19 +307,28 @@ function SignupForm({ onBack, options }) {
   const [success, setSuccess] = useState(false)
   const set = (k) => (v) => setForm(f => ({ ...f, [k]: v }))
   const setE = (k) => (e) => set(k)(e.target.value)
+  const useMsg91 = !!(config.msg91WidgetId && config.msg91TokenAuth)
 
-  const handleFloorChange = (floor) => {
-    setForm(f => ({ ...f, floor, flat_number: '' }))
-  }
+  useEffect(() => {
+    if (!useMsg91) return
+    // Update the global callbacks so the single widget instance routes to this form
+    window.__msg91Success = (data) => { set('msg91Token')(data['access-token']); setStep('details') }
+    window.__msg91Failure = (err) => { setError(err.message || 'OTP verification failed'); setBusy(false) }
+    return () => { window.__msg91Success = null; window.__msg91Failure = null }
+  }, [useMsg91])
 
   const handleRequestOtp = async (e) => {
     e.preventDefault()
     if (!isValidMobile(form.mobile)) { setError('Enter a valid 10-digit mobile number'); return }
-    setError('')
-    setBusy(true)
+    setError(''); setBusy(true)
     try {
-      await signupRequestOtp(form.mobile)
-      setStep('otp')
+      if (useMsg91) {
+        window.sendOtp(`91${form.mobile}`)
+        setStep('otp')
+      } else {
+        await signupRequestOtp(form.mobile)
+        setStep('otp')
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -277,11 +336,17 @@ function SignupForm({ onBack, options }) {
     }
   }
 
-  const handleVerifyOtp = async (e) => {
+  const handleVerifyOtp = (e) => {
     e.preventDefault()
     if (form.code.length !== 6) { setError('Enter the 6-digit OTP'); return }
     setError('')
-    setStep('details')
+    if (useMsg91) {
+      setBusy(true)
+      window.verifyOtp(form.code)
+      // busy stays true — success/failure callbacks handle outcome
+    } else {
+      setStep('details')
+    }
   }
 
   const handleCreate = async (e) => {
@@ -291,15 +356,10 @@ function SignupForm({ onBack, options }) {
     setBusy(true)
     try {
       await signupVerifyAndCreate({
-        mobile:       form.mobile,
-        code:         form.code,
-        password:     form.password,
-        first_name:   form.first_name,
-        last_name:    form.last_name,
-        tower_name:   form.tower_name || null,
-        tower_number: form.tower_number ? parseInt(form.tower_number) : null,
-        block:        form.block,
-        flat_number:  form.flat_number || null,
+        mobile:     form.mobile,
+        msg91Token: form.msg91Token || null,
+        code:       form.code || null,
+        password:   form.password,
       })
       setSuccess(true)
     } catch (err) {
@@ -338,6 +398,23 @@ function SignupForm({ onBack, options }) {
   }
 
   if (step === 'otp') {
+    if (useMsg91) {
+      return (
+        <form onSubmit={handleVerifyOtp} className="space-y-4">
+          <p className="text-sm text-gray-500">OTP sent to <span className="font-medium text-gray-700">{form.mobile}</span></p>
+          <Field label="Enter OTP">
+            <OtpInput value={form.code} onChange={set('code')} />
+          </Field>
+          {error && <p className="text-red-500 text-xs">{error}</p>}
+          <SubmitBtn busy={busy} disabled={form.code.length !== 6} label="Verify OTP" busyLabel="Verifying…" />
+          <div className="flex justify-between text-xs pt-1">
+            <button type="button" onClick={() => window.retryOtp()}
+                    className="text-brand-600 hover:text-brand-800 transition-colors">Resend OTP</button>
+            <BackBtn onClick={() => { setStep('mobile'); setError('') }} label="← Change number" />
+          </div>
+        </form>
+      )
+    }
     return (
       <form onSubmit={handleVerifyOtp} className="space-y-4">
         <p className="text-sm text-gray-500">OTP sent to <span className="font-medium text-gray-700">{form.mobile}</span></p>
@@ -352,34 +429,14 @@ function SignupForm({ onBack, options }) {
   }
 
   return (
-    <form onSubmit={handleCreate} className="space-y-3">
-      <p className="text-xs text-gray-500 text-center">Complete your profile</p>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="First Name">
-          <input type="text" required value={form.first_name} onChange={setE('first_name')} className={inputCls} placeholder="First" />
-        </Field>
-        <Field label="Last Name">
-          <input type="text" required value={form.last_name} onChange={setE('last_name')} className={inputCls} placeholder="Last" />
-        </Field>
-      </div>
+    <form onSubmit={handleCreate} className="space-y-4">
+      <p className="text-xs text-gray-500 text-center">Choose a password for your account</p>
       <Field label="Password">
         <input type="password" required autoComplete="new-password" value={form.password} onChange={setE('password')} className={inputCls} placeholder="Choose a password" />
       </Field>
       <Field label="Confirm Password">
         <input type="password" required autoComplete="new-password" value={form.confirm} onChange={setE('confirm')} className={inputCls} placeholder="Repeat password" />
       </Field>
-      <SelectField label="Building" value={form.tower_name} onChange={set('tower_name')}
-                   options={options.buildings} placeholder="Select building" />
-      <div className="grid grid-cols-3 gap-3">
-        <SelectField label="Tower" value={form.tower_number} onChange={set('tower_number')}
-                     options={options.tower_numbers} placeholder="—" />
-        <SelectField label="Block" value={form.block} onChange={set('block')}
-                     options={options.blocks} placeholder="—" />
-        <SelectField label="Floor" value={form.floor} onChange={handleFloorChange}
-                     options={options.floors} placeholder="—" />
-      </div>
-      <SelectField label="Flat Number" value={form.flat_number} onChange={set('flat_number')}
-                   options={flatsForFloor(form.floor)} placeholder={form.floor ? 'Select flat' : 'Select floor first'} />
       {error && <p className="text-red-500 text-xs">{error}</p>}
       <SubmitBtn busy={busy} disabled={false} label="Create Account" busyLabel="Creating…" />
     </form>
@@ -389,26 +446,36 @@ function SignupForm({ onBack, options }) {
 // ── Forgot password ──────────────────────────────────────────────────────────
 
 function ForgotScreen({ onBack }) {
-  const [mobile, setMobile]     = useState('')
-  const [code, setCode]         = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm]   = useState('')
-  const [step, setStep]         = useState('mobile')
-  const [found, setFound]       = useState(null)
-  const [error, setError]       = useState('')
-  const [busy, setBusy]         = useState(false)
-  const [success, setSuccess]   = useState(false)
+  const [mobile, setMobile]         = useState('')
+  const [code, setCode]             = useState('')
+  const [msg91Token, setMsg91Token] = useState('')
+  const [password, setPassword]     = useState('')
+  const [confirm, setConfirm]       = useState('')
+  const [step, setStep]             = useState('mobile')
+  const [error, setError]           = useState('')
+  const [busy, setBusy]             = useState(false)
+  const [success, setSuccess]       = useState(false)
+  const useMsg91 = !!(config.msg91WidgetId && config.msg91TokenAuth)
+
+  useEffect(() => {
+    if (!useMsg91) return
+    window.__msg91Success = (data) => { setMsg91Token(data['access-token']); setStep('reset') }
+    window.__msg91Failure = (err) => { setError(err.message || 'OTP verification failed'); setBusy(false) }
+    return () => { window.__msg91Success = null; window.__msg91Failure = null }
+  }, [useMsg91])
 
   const handleLookup = async (e) => {
     e.preventDefault()
     if (!isValidMobile(mobile)) { setError('Enter a valid 10-digit mobile number'); return }
-    setError('')
-    setBusy(true)
+    setError(''); setBusy(true)
     try {
-      const user = await lookupByMobile(mobile)
-      setFound(user)
-      await resetPasswordRequestOtp(mobile)
-      setStep('otp')
+      if (useMsg91) {
+        window.sendOtp(`91${mobile}`)
+        setStep('otp')
+      } else {
+        await resetPasswordRequestOtp(mobile)
+        setStep('otp')
+      }
     } catch (err) {
       setError(err.message)
     } finally {
@@ -416,11 +483,17 @@ function ForgotScreen({ onBack }) {
     }
   }
 
-  const handleVerifyOtp = async (e) => {
+  const handleVerifyOtp = (e) => {
     e.preventDefault()
     if (code.length !== 6) { setError('Enter the 6-digit OTP'); return }
     setError('')
-    setStep('reset')
+    if (useMsg91) {
+      setBusy(true)
+      window.verifyOtp(code)
+      // busy stays true — success/failure callbacks handle outcome
+    } else {
+      setStep('reset')
+    }
   }
 
   const handleReset = async (e) => {
@@ -429,7 +502,7 @@ function ForgotScreen({ onBack }) {
     setError('')
     setBusy(true)
     try {
-      await resetPassword(mobile, code, password)
+      await resetPassword(mobile, msg91Token || code, password)
       setSuccess(true)
     } catch (err) {
       setError(err.message)
@@ -467,13 +540,25 @@ function ForgotScreen({ onBack }) {
   }
 
   if (step === 'otp') {
+    if (useMsg91) {
+      return (
+        <form onSubmit={handleVerifyOtp} className="space-y-4">
+          <p className="text-sm text-gray-500 text-center">OTP sent to <span className="font-medium text-gray-700">{mobile}</span></p>
+          <Field label="Enter OTP">
+            <OtpInput value={code} onChange={setCode} />
+          </Field>
+          {error && <p className="text-red-500 text-xs">{error}</p>}
+          <SubmitBtn busy={false} disabled={code.length !== 6} label="Verify OTP" busyLabel="Verifying…" />
+          <div className="flex justify-between text-xs pt-1">
+            <button type="button" onClick={() => window.retryOtp()}
+                    className="text-brand-600 hover:text-brand-800 transition-colors">Resend OTP</button>
+            <BackBtn onClick={() => { setStep('mobile'); setError('') }} label="← Change number" />
+          </div>
+        </form>
+      )
+    }
     return (
       <form onSubmit={handleVerifyOtp} className="space-y-4">
-        {found && (
-          <p className="text-sm text-center text-gray-700">
-            Found: <span className="font-medium">{found.first_name} {found.last_name}</span>
-          </p>
-        )}
         <p className="text-sm text-gray-500 text-center">OTP sent to <span className="font-medium text-gray-700">{mobile}</span></p>
         <Field label="Enter OTP">
           <OtpInput value={code} onChange={setCode} />
@@ -525,19 +610,12 @@ function Tabs({ active, onChange }) {
 
 // ── Root ─────────────────────────────────────────────────────────────────────
 
-const EMPTY_OPTIONS = { buildings: [], tower_numbers: [], blocks: [], floors: [] }
-
 export default function LoginScreen({ adminMode, onLogin }) {
   const [tab, setTab]                       = useState('otp')
   const [screen, setScreen]                 = useState('login')
   const [policyAccepted, setPolicyAccepted] = useState(false)
   const [error, setError]                   = useState('')
   const [busy, setBusy]                     = useState(false)
-  const [options, setOptions]               = useState(EMPTY_OPTIONS)
-
-  useEffect(() => {
-    getOptions().then(setOptions).catch(() => {})
-  }, [])
 
   const handleAdminSubmit = async (e) => {
     e.preventDefault()
@@ -587,7 +665,7 @@ export default function LoginScreen({ adminMode, onLogin }) {
       <div className="bg-white rounded-2xl shadow-lg w-full max-w-sm p-8">
         <Logo />
 
-        {screen === 'signup' && <SignupForm onBack={goBack} options={options} />}
+        {screen === 'signup' && <SignupForm onBack={goBack} />}
 
         {screen === 'forgot' && <ForgotScreen onBack={goBack} />}
 

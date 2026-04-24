@@ -36,13 +36,13 @@ export async function requestOtp(mobile) {
   return res.json()
 }
 
-export async function verifyOtp(mobile, code, macAddress, omadaParams, policyAccepted = false) {
+export async function verifyOtp(mobile, msg91Token, macAddress, omadaParams, policyAccepted = false) {
   const res = await fetch(`${config.apiUrl}/api/auth/otp/verify`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       mobile,
-      code,
+      msg91_token:     msg91Token,
       mac_address:     macAddress ?? null,
       ap_mac:          omadaParams?.apMac ?? null,
       ssid_name:       omadaParams?.ssidName ?? null,
@@ -56,12 +56,6 @@ export async function verifyOtp(mobile, code, macAddress, omadaParams, policyAcc
     const { detail } = await res.json().catch(() => ({ detail: 'OTP verification failed' }))
     throw new Error(detail)
   }
-  return res.json()
-}
-
-export async function getOptions() {
-  const res = await fetch(`${config.apiUrl}/api/options`)
-  if (!res.ok) throw new Error('Failed to load options')
   return res.json()
 }
 
@@ -82,23 +76,15 @@ export async function signupVerifyAndCreate(data) {
   const res = await fetch(`${config.apiUrl}/api/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      mobile:      data.mobile,
+      msg91_token: data.msg91Token ?? null,
+      code:        data.code ?? null,
+      password:    data.password,
+    }),
   })
   if (!res.ok) {
     const { detail } = await res.json().catch(() => ({ detail: 'Signup failed' }))
-    throw new Error(detail)
-  }
-  return res.json()
-}
-
-export async function lookupByMobile(mobile) {
-  const res = await fetch(`${config.apiUrl}/api/auth/lookup`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mobile }),
-  })
-  if (!res.ok) {
-    const { detail } = await res.json().catch(() => ({ detail: 'Account not found' }))
     throw new Error(detail)
   }
   return res.json()
@@ -117,11 +103,11 @@ export async function resetPasswordRequestOtp(mobile) {
   return res.json()
 }
 
-export async function resetPassword(mobile, code, password) {
+export async function resetPassword(mobile, msg91Token, password) {
   const res = await fetch(`${config.apiUrl}/api/auth/reset-password`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mobile, code, password }),
+    body: JSON.stringify({ mobile, msg91_token: msg91Token, password }),
   })
   if (!res.ok) {
     const { detail } = await res.json().catch(() => ({ detail: 'Password reset failed' }))
@@ -167,19 +153,6 @@ export async function createUser(token, data) {
   })
   if (!res.ok) {
     const { detail } = await res.json().catch(() => ({ detail: 'Failed to create user' }))
-    throw new Error(detail)
-  }
-  return res.json()
-}
-
-export async function updateUser(token, username, data) {
-  const res = await fetch(`${config.apiUrl}/api/users/${encodeURIComponent(username)}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify(data),
-  })
-  if (!res.ok) {
-    const { detail } = await res.json().catch(() => ({ detail: 'Failed to update user' }))
     throw new Error(detail)
   }
   return res.json()

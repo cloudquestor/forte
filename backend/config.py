@@ -38,20 +38,14 @@ NFT_SET:   str = os.getenv("FORTE_NFT_SET",   "allowed_macs")
 ROUTER_CONTAINER: str | None = os.getenv("FORTE_ROUTER_CONTAINER")
 
 # MSG91 OTP integration (optional — if unset, dummy OTP flow is used)
-MSG91_API_KEY: str | None = os.getenv("FORTE_MSG91_API_KEY")
+MSG91_API_KEY: str | None = os.getenv("FORTE_MSG91_API_KEY")       # account authkey (for sending OTP via API)
 MSG91_TEMPLATE_ID: str | None = os.getenv("FORTE_MSG91_TEMPLATE_ID")
+MSG91_TOKEN_AUTH: str | None = os.getenv("FORTE_MSG91_TOKEN_AUTH")  # widget tokenAuth (frontend)
+MSG91_AUTH_KEY: str | None = os.getenv("FORTE_MSG91_AUTH_KEY")      # account authkey (server-side verifyAccessToken)
+MSG91_WIDGET_ID: str | None = os.getenv("FORTE_MSG91_WIDGET_ID")
 OTP_TTL_SECONDS: int = 300  # 5 minutes
 OTP_DUMMY_ENABLED: bool = os.getenv("FORTE_OTP_DUMMY", "true").lower() in ("1", "true", "yes")
 OTP_DUMMY_CODE: str = os.getenv("FORTE_OTP_DUMMY_CODE", "123456")
-
-def _parse_list(env_key: str, default: list[str]) -> list[str]:
-    raw = os.getenv(env_key, '').strip()
-    return [v.strip() for v in raw.split(',') if v.strip()] if raw else default
-
-BUILDINGS: list[str]    = _parse_list('FORTE_BUILDINGS', [])
-TOWER_NUMBERS: list[str] = _parse_list('FORTE_TOWER_NUMBERS', [])
-BLOCKS: list[str]       = _parse_list('FORTE_BLOCKS', [])
-FLOORS: list[str]       = _parse_list('FORTE_FLOORS', [])
 
 # Omada controller integration (optional)
 # OMADA_CONTROLLER_ID is the identifier in the controller URL path

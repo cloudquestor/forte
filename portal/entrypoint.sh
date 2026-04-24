@@ -19,6 +19,8 @@ printf '  policyText:      "%s",\n' "$POLICY_TEXT" >> /usr/share/nginx/html/conf
 cat >> /usr/share/nginx/html/config.js <<EOF
   policyUrl:       "${VITE_POLICY_URL:-/policy}",
   tokenKey:        "${VITE_TOKEN_KEY:-forte_token}",
+  msg91WidgetId:   "${VITE_MSG91_WIDGET_ID:-}",
+  msg91TokenAuth:  "${VITE_MSG91_TOKEN_AUTH:-}",
 };
 EOF
 

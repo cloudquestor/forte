@@ -83,7 +83,8 @@ class OtpRequestBody(BaseModel):
 
 class OtpVerifyRequest(BaseModel):
     mobile:          str
-    code:            str
+    code:            str | None = None
+    msg91_token:     str | None = None
     mac_address:     str | None = None
     ap_mac:          str | None = None
     ssid_name:       str | None = None
@@ -106,7 +107,7 @@ def otp_verify(body: OtpVerifyRequest):
         raise HTTPException(status_code=400, detail="You must accept the network usage policy")
     _validate_mobile(body.mobile)
     token = otp_module.verify_otp_and_authenticate(
-        body.mobile, body.code, body.mac_address,
+        body.mobile, body.code, body.msg91_token, body.mac_address,
         ap_mac=body.ap_mac, ssid_name=body.ssid_name, radio_id=body.radio_id,
         gateway_mac=body.gateway_mac, vid=body.vid,
     )
@@ -119,16 +120,6 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/api/options")
-def get_options():
-    return {
-        "buildings":     config.BUILDINGS,
-        "tower_numbers": config.TOWER_NUMBERS,
-        "blocks":        config.BLOCKS,
-        "floors":        config.FLOORS,
-    }
-
-
 # ── Self-service signup (OTP-verified) ────────────────────────────────────────
 
 class SignupOtpRequest(BaseModel):
@@ -136,15 +127,10 @@ class SignupOtpRequest(BaseModel):
 
 
 class SignupRequest(BaseModel):
-    mobile:       str
-    code:         str
-    password:     str
-    first_name:   str = ''
-    last_name:    str = ''
-    tower_name:   str | None = None
-    tower_number: int | None = None
-    block:        str = ''
-    flat_number:  int | None = None
+    mobile:      str
+    code:        str | None = None
+    msg91_token: str | None = None
+    password:    str
 
 
 @app.post("/api/auth/signup/otp")
@@ -161,45 +147,22 @@ def signup(body: SignupRequest):
     _validate_mobile(body.mobile)
     if db.mobile_exists(body.mobile):
         raise HTTPException(status_code=409, detail="An account with this mobile number already exists")
-    if not db.verify_otp(body.mobile, body.code):
-        raise HTTPException(status_code=401, detail="Invalid or expired OTP")
-    db.create_user(
-        username=body.mobile,
-        plain=body.password,
-        first_name=body.first_name,
-        last_name=body.last_name,
-        tower_name=body.tower_name,
-        tower_number=body.tower_number,
-        block=body.block,
-        flat_number=body.flat_number,
-        mobile=body.mobile,
-    )
+    otp_module._resolve_otp(body.mobile, body.code, body.msg91_token)
+    db.create_user(username=body.mobile, plain=body.password, mobile=body.mobile)
     return {"username": body.mobile}
 
 
 # ── Account lookup + password reset (OTP-verified) ───────────────────────────
-
-class LookupRequest(BaseModel):
-    mobile: str
-
-
-@app.post("/api/auth/lookup")
-def lookup(body: LookupRequest):
-    _validate_mobile(body.mobile)
-    user = db.find_user_by_mobile(body.mobile)
-    if not user:
-        raise HTTPException(status_code=404, detail="No account found for this mobile number")
-    return {"first_name": user["first_name"], "last_name": user["last_name"]}
-
 
 class ResetPasswordOtpRequest(BaseModel):
     mobile: str
 
 
 class ResetPasswordRequest(BaseModel):
-    mobile:   str
-    code:     str
-    password: str
+    mobile:      str
+    code:        str | None = None
+    msg91_token: str | None = None
+    password:    str
 
 
 @app.post("/api/auth/reset-password/otp")
@@ -214,8 +177,7 @@ def reset_password_otp(body: ResetPasswordOtpRequest):
 @app.post("/api/auth/reset-password")
 def reset_password(body: ResetPasswordRequest):
     _validate_mobile(body.mobile)
-    if not db.verify_otp(body.mobile, body.code):
-        raise HTTPException(status_code=401, detail="Invalid or expired OTP")
+    otp_module._resolve_otp(body.mobile, body.code, body.msg91_token)
     if not db.reset_password_by_mobile(body.mobile, body.password):
         raise HTTPException(status_code=404, detail="No account found for this mobile number")
     return {"status": "password reset"}
@@ -236,15 +198,9 @@ def list_users(authorization: str = Header(...)):
 
 
 class CreateUserRequest(BaseModel):
-    username:     str
-    password:     str
-    first_name:   str = ''
-    last_name:    str = ''
-    tower_name:   str | None = None
-    tower_number: int | None = None
-    block:        str = ''
-    flat_number:  int | None = None
-    mobile:       str | None = None
+    username: str
+    password: str
+    mobile:   str | None = None
 
 
 @app.post("/api/users", status_code=201)
@@ -254,27 +210,8 @@ def create_user(body: CreateUserRequest, authorization: str = Header(...)):
         raise HTTPException(status_code=409, detail="User already exists")
     if body.mobile and db.mobile_exists(body.mobile):
         raise HTTPException(status_code=409, detail="Mobile number already registered")
-    db.create_user(body.username, body.password, body.first_name, body.last_name,
-                   body.tower_name, body.tower_number, body.block, body.flat_number, body.mobile)
+    db.create_user(body.username, body.password, body.mobile)
     return {"username": body.username}
-
-
-class UpdateUserRequest(BaseModel):
-    first_name:   str = ''
-    last_name:    str = ''
-    tower_name:   str | None = None
-    tower_number: int | None = None
-    block:        str = ''
-    flat_number:  int | None = None
-
-
-@app.put("/api/users/{username}")
-def update_user(username: str, body: UpdateUserRequest, authorization: str = Header(...)):
-    _require_admin(authorization)
-    if not db.update_user(username, body.first_name, body.last_name,
-                          body.tower_name, body.tower_number, body.block, body.flat_number):
-        raise HTTPException(status_code=404, detail="User not found")
-    return {"status": "updated"}
 
 
 class UpdatePasswordRequest(BaseModel):
