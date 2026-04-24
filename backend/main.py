@@ -60,7 +60,7 @@ class LoginRequest(BaseModel):
 def login(body: LoginRequest):
     if not body.policy_accepted:
         raise HTTPException(status_code=400, detail="You must accept the network usage policy")
-    logger.debug("POST /api/auth/login user=%s mac=%s", body.username, body.mac_address)
+    logger.debug("POST /api/auth/login user=%s mac=%s", body.username, "present" if body.mac_address else "absent")
     token = auth.authenticate(
         body.username, body.password, body.mac_address,
         ap_mac=body.ap_mac, ssid_name=body.ssid_name, radio_id=body.radio_id,
