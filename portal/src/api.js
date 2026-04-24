@@ -59,6 +59,77 @@ export async function verifyOtp(mobile, code, macAddress, omadaParams, policyAcc
   return res.json()
 }
 
+export async function getOptions() {
+  const res = await fetch(`${config.apiUrl}/api/options`)
+  if (!res.ok) throw new Error('Failed to load options')
+  return res.json()
+}
+
+export async function signupRequestOtp(mobile) {
+  const res = await fetch(`${config.apiUrl}/api/auth/signup/otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mobile }),
+  })
+  if (!res.ok) {
+    const { detail } = await res.json().catch(() => ({ detail: 'Failed to send OTP' }))
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
+export async function signupVerifyAndCreate(data) {
+  const res = await fetch(`${config.apiUrl}/api/auth/signup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) {
+    const { detail } = await res.json().catch(() => ({ detail: 'Signup failed' }))
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
+export async function lookupByMobile(mobile) {
+  const res = await fetch(`${config.apiUrl}/api/auth/lookup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mobile }),
+  })
+  if (!res.ok) {
+    const { detail } = await res.json().catch(() => ({ detail: 'Account not found' }))
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
+export async function resetPasswordRequestOtp(mobile) {
+  const res = await fetch(`${config.apiUrl}/api/auth/reset-password/otp`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mobile }),
+  })
+  if (!res.ok) {
+    const { detail } = await res.json().catch(() => ({ detail: 'Failed to send OTP' }))
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
+export async function resetPassword(mobile, code, password) {
+  const res = await fetch(`${config.apiUrl}/api/auth/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mobile, code, password }),
+  })
+  if (!res.ok) {
+    const { detail } = await res.json().catch(() => ({ detail: 'Password reset failed' }))
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
 export async function logout(token) {
   await fetch(`${config.apiUrl}/api/auth/logout`, {
     method: 'DELETE',
