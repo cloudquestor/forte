@@ -49,5 +49,5 @@ export function isEnabled() {
 
 export function sendOtp(mobile) { window.sendOtp(`91${mobile}`) }
 export function verifyOtp(code) { window.verifyOtp(code) }
-export function retryOtp() { window.retryOtp?.() }
+export function retryOtp() { window.retryOtp?.('11') }
 export function extractToken(data) { return data.message ?? data['access-token'] }

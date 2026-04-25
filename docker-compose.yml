@@ -68,6 +68,8 @@ services:
       VITE_TOKEN_KEY: ${VITE_TOKEN_KEY:-forte_token}
       VITE_MSG91_WIDGET_ID: ${VITE_MSG91_WIDGET_ID:-}
       VITE_MSG91_TOKEN_AUTH: ${VITE_MSG91_TOKEN_AUTH:-}
+      VITE_RESEND_COOLDOWN: ${VITE_RESEND_COOLDOWN:-30}
+
     ports:
       - "${PORTAL_PORT:-80}:80"
     depends_on:

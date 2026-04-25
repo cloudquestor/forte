@@ -21,6 +21,7 @@ cat >> /usr/share/nginx/html/config.js <<EOF
   tokenKey:        "${VITE_TOKEN_KEY:-forte_token}",
   msg91WidgetId:   "${VITE_MSG91_WIDGET_ID:-}",
   msg91TokenAuth:  "${VITE_MSG91_TOKEN_AUTH:-}",
+  resendCooldown:  ${VITE_RESEND_COOLDOWN:-30},
 };
 EOF
 

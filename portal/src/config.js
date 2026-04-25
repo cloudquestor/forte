@@ -10,6 +10,7 @@ const config = {
   tokenKey:         rc.tokenKey         ?? 'forte_token',
   msg91WidgetId:    rc.msg91WidgetId    ?? '',
   msg91TokenAuth:   rc.msg91TokenAuth   ?? '',
+  resendCooldown:  rc.resendCooldown  ?? 30,
 }
 
 export default config

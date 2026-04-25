@@ -1,108 +1,78 @@
 # Forte — Technology Stack
 
-## Backend
+## Backend (`backend/`)
 
-| Item | Detail |
-|------|--------|
+| Concern | Technology |
+|---|---|
 | Language | Python 3.12 |
 | Framework | FastAPI 0.111.0 |
-| ASGI Server | Uvicorn 0.30.1 (with standard extras) |
+| Server | Uvicorn 0.30.1 (standard extras) |
 | Validation | Pydantic 2.7.1 |
-| Password hashing | bcrypt 4.1.3 |
-| Database | SQLite (via stdlib `sqlite3`), file at `/data/forte.db` |
-| Firewall control | `subprocess` calling `nft` (or `docker exec <container> nft`) |
-| Container base | `python:3.12-slim`, runs as non-root user `forte` (uid 1001) |
-| Port | 8000 |
+| HTTP client | requests 2.32.3 |
+| Auth | JWT (HS256, custom impl in auth.py) |
+| Persistence | JSON files on `/data` volume (no database) |
+| Firewall | nftables via subprocess or `docker exec` |
+| Container | python:3.12-slim, non-root user `forte`, port 8000 |
 
-### Backend Dev Commands
-```sh
-# Install dependencies
-pip install -r requirements.txt
+## Frontend (`portal/`)
 
-# Run locally
-uvicorn main:app --reload --port 8000
-
-# Build image
-docker build -t forte-backend ./backend
-```
-
----
-
-## Portal (Frontend)
-
-| Item | Detail |
-|------|--------|
-| Language | JavaScript (ES modules, JSX) |
+| Concern | Technology |
+|---|---|
+| Language | JavaScript (JSX), ES modules |
 | Framework | React 18.2 |
 | Build tool | Vite 4.4.5 |
-| Styling | Tailwind CSS 3.4 + PostCSS + Autoprefixer |
-| Linter | ESLint 8 with `eslint-plugin-react`, `react-hooks`, `react-refresh` |
-| Node version | 18 (Alpine, build stage) |
-| Serve | Nginx 1.25-Alpine |
-| Port | 80 (container), configurable via `PORTAL_PORT` on host |
+| Styling | Tailwind CSS 3.4 |
+| Linter | ESLint 8 with react, react-hooks, react-refresh plugins |
+| Container | Node 18-alpine (build) → nginx:1.25-alpine (serve), port 80 |
 
-### Portal Dev Commands
+## Tailwind Brand Palette
+Custom `brand` color scale (orange/brown tones): 50–900. Use `brand-600` for primary actions, `brand-500`/`brand-700` for hover states.
+
+## Runtime Config Injection
+Portal env vars (`VITE_*`) are injected at container start by `entrypoint.sh` into `window.__FORTE_CONFIG__` in `index.html`. `config.js` reads from this object with fallback defaults — no rebuild needed to change config.
+
+## Development Commands
+
+### Backend
+```sh
+cd backend
+pip install -r requirements.txt
+uvicorn main:app --reload --port 8000
+```
+
+### Portal
 ```sh
 cd portal
-
-# Install dependencies
-npm ci
-
-# Dev server (port 5173, proxies /api/ to localhost:8000)
-npm run dev
-
-# Production build
-npm run build
-
-# Lint
-npm run lint
-
-# Preview production build
-npm run preview
+npm install
+npm run dev        # Vite dev server on :5173, proxies /api/ to :8000
+npm run build      # Production build to dist/
+npm run lint       # ESLint check
 ```
 
-### Environment Variables (Portal)
-Injected at container start by `entrypoint.sh` into the built JS bundle:
-- `VITE_API_URL` — backend base URL (empty = same origin via nginx proxy)
-- `VITE_APP_NAME` — portal heading
-- `VITE_APP_TAGLINE` — subheading on login screen
-- `VITE_POLICY_TEXT` — policy notice text
-- `VITE_DEFAULT_REDIRECT` — post-login redirect URL
-- `VITE_TOKEN_KEY` — localStorage key for auth token
-
-Dev overrides live in `portal/.env.local`.
-
----
-
-## Infrastructure
-
-| Item | Detail |
-|------|--------|
-| Orchestration | Docker Compose (bridge network `forte`) |
-| Firewall | nftables (`inet` table, MAC address set with TTL) |
-| Router OS | OpenWRT (production target) |
-| Test rig | Docker-based OpenWRT simulation in `infra/openwrt/simulate/` |
-| CI/CD | GitHub Actions (`.github/workflows/publish.yml`) — publishes images to GHCR |
-| Image registry | `ghcr.io/cloudquestor/forte-backend` / `forte-portal` |
-
-### Full Stack Dev Commands
+### Full Stack (Docker Compose)
 ```sh
-# Start full stack (uses published images)
+cp .env.example .env   # fill in FORTE_USERS at minimum
 docker compose up -d
-
-# View logs
 docker compose logs -f
-
-# Rebuild and start with local changes
-docker compose up -d --build
-
-# Stop
-docker compose down
 ```
 
-### OpenWRT Simulation
+### OpenWrt Test Rig
 ```sh
 cd infra/openwrt/simulate
-./start.sh    # spin up simulated router
-./stop.sh     # tear down
+./start.sh    # spins up simulated router container
+./stop.sh
 ```
+
+## Key Environment Variables
+
+| Variable | Where used |
+|---|---|
+| `FORTE_USERS` | Backend — comma-separated `user:pass` pairs |
+| `FORTE_ADMINS` | Backend — usernames with admin privileges |
+| `FORTE_SESSION_TTL` | Backend + nftables timeout (e.g. `8h`) |
+| `FORTE_ROUTER_CONTAINER` | Backend — docker exec target for nft commands |
+| `OMADA_CONTROLLER_URL` / `OMADA_CONTROLLER_ID` | Backend — Omada integration |
+| `FORTE_MSG91_*` | Backend — MSG91 OTP service credentials |
+| `FORTE_OTP_DUMMY` / `FORTE_OTP_DUMMY_CODE` | Backend — dev OTP bypass |
+| `VITE_API_URL` | Portal — backend URL (empty = same-origin via nginx proxy) |
+| `VITE_MSG91_WIDGET_ID` / `VITE_MSG91_TOKEN_AUTH` | Portal — MSG91 widget |

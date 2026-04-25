@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { signupRequestOtp, signupVerifyAndCreate } from './api'
 import { isEnabled, initWidget, moveCaptchaTo, sendOtp, verifyOtp as msg91Verify, retryOtp, extractToken } from './msg91'
 import { Field, MobileInput, OtpInput, SubmitBtn, BackBtn } from './loginComponents'
+import config from './config'
 
 const EMPTY = { mobile: '', code: '', msg91Token: '', password: '', confirm: '' }
 const inputCls = 'w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
@@ -16,6 +17,25 @@ export default function SignupForm({ onBack }) {
   const setE = (k) => (e) => set(k)(e.target.value)
   const useMsg91 = isEnabled()
 
+  const [resent, setResent]     = useState(false)
+  const [cooldown, setCooldown] = useState(config.resendCooldown)
+  const cooldownRef             = useRef(null)
+
+  const startCooldown = () => {
+    setCooldown(config.resendCooldown)
+    clearInterval(cooldownRef.current)
+    cooldownRef.current = setInterval(() => setCooldown(c => {
+      if (c <= 1) { clearInterval(cooldownRef.current); return 0 }
+      return c - 1
+    }), 1000)
+  }
+
+  useEffect(() => {
+    if (step === 'otp') startCooldown()
+    return () => clearInterval(cooldownRef.current)
+  }, [step])
+
+
   useEffect(() => {
     if (!useMsg91) return
     window.__msg91Success = (data) => { set('msg91Token')(extractToken(data)); setStep('details'); setBusy(false) }
@@ -29,8 +49,11 @@ export default function SignupForm({ onBack }) {
     e.preventDefault()
     setError(''); setBusy(true)
     try {
-      if (useMsg91) { sendOtp(form.mobile); setStep('otp') }
-      else { await signupRequestOtp(form.mobile); setStep('otp') }
+      
+      await signupRequestOtp(form.mobile)   
+      if (useMsg91) { sendOtp(form.mobile) }
+      setStep('otp')
+
     } catch (err) { setError(err.message) }
     finally { setBusy(false) }
   }
@@ -42,6 +65,18 @@ export default function SignupForm({ onBack }) {
     if (useMsg91) { setBusy(true); msg91Verify(form.code) }
     else setStep('details')
   }
+
+  const handleResend = async () => {
+    setError(''); setResent(false); setBusy(true)
+    try {
+      if (useMsg91) { retryOtp() }
+      else { await signupRequestOtp(form.mobile) }
+      setResent(true)
+      startCooldown()
+    } catch (err) { setError(err.message) }
+    finally { setBusy(false) }
+  }
+
 
   const handleCreate = async (e) => {
     e.preventDefault()
@@ -74,19 +109,37 @@ export default function SignupForm({ onBack }) {
     </form>
   )
 
+  // if (step === 'otp') return (
+  //   <form onSubmit={handleVerifyOtp} className="space-y-4">
+  //     <p className="text-sm text-gray-500">OTP sent to <span className="font-medium text-gray-700">{form.mobile}</span></p>
+  //     <Field label="Enter OTP"><OtpInput value={form.code} onChange={set('code')} /></Field>
+  //     {error && <p className="text-red-500 text-xs">{error}</p>}
+  //     <SubmitBtn busy={busy} disabled={form.code.length !== 6} label="Verify OTP" busyLabel="Verifying…" />
+  //     <div className="flex justify-between text-xs pt-1">
+  //       <button type="button" onClick={() => useMsg91 ? retryOtp() : signupRequestOtp(form.mobile).catch(() => {})}
+  //               className="text-brand-600 hover:text-brand-800 transition-colors">Resend OTP</button>
+  //       <BackBtn onClick={() => { setStep('mobile'); setError('') }} label="← Change number" />
+  //     </div>
+  //   </form>
+  // )
+
   if (step === 'otp') return (
     <form onSubmit={handleVerifyOtp} className="space-y-4">
       <p className="text-sm text-gray-500">OTP sent to <span className="font-medium text-gray-700">{form.mobile}</span></p>
       <Field label="Enter OTP"><OtpInput value={form.code} onChange={set('code')} /></Field>
-      {error && <p className="text-red-500 text-xs">{error}</p>}
+      {error  && <p className="text-red-500 text-xs">{error}</p>}
+      {resent && <p className="text-green-600 text-xs">OTP resent successfully.</p>}
       <SubmitBtn busy={busy} disabled={form.code.length !== 6} label="Verify OTP" busyLabel="Verifying…" />
       <div className="flex justify-between text-xs pt-1">
-        <button type="button" onClick={() => useMsg91 ? retryOtp() : signupRequestOtp(form.mobile).catch(() => {})}
-                className="text-brand-600 hover:text-brand-800 transition-colors">Resend OTP</button>
-        <BackBtn onClick={() => { setStep('mobile'); setError('') }} label="← Change number" />
+        <button type="button" onClick={handleResend} disabled={busy || cooldown > 0}
+                className="text-brand-600 hover:text-brand-800 disabled:opacity-50 transition-colors">
+          {cooldown > 0 ? `Resend OTP (${cooldown}s)` : 'Resend OTP'}
+        </button>
+        <BackBtn onClick={() => { setStep('mobile'); setError(''); setResent(false) }} label="← Change number" />
       </div>
     </form>
   )
+
 
   return (
     <form onSubmit={handleCreate} className="space-y-4">

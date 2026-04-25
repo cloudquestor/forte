@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { resetPasswordRequestOtp, resetPassword } from './api'
 import { isEnabled, initWidget, moveCaptchaTo, sendOtp, verifyOtp as msg91Verify, retryOtp, extractToken } from './msg91'
 import { Field, MobileInput, OtpInput, SubmitBtn, BackBtn } from './loginComponents'
+import config from './config'
 
 const inputCls = 'w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500'
 
@@ -16,6 +17,24 @@ export default function ForgotScreen({ onBack }) {
   const [busy, setBusy]             = useState(false)
   const [success, setSuccess]       = useState(false)
   const useMsg91 = isEnabled()
+  const [resent, setResent]     = useState(false)
+  const [cooldown, setCooldown] = useState(config.resendCooldown)
+  const cooldownRef             = useRef(null)
+
+
+  const startCooldown = () => {
+    setCooldown(config.resendCooldown)
+    clearInterval(cooldownRef.current)
+    cooldownRef.current = setInterval(() => setCooldown(c => {
+      if (c <= 1) { clearInterval(cooldownRef.current); return 0 }
+      return c - 1
+    }), 1000)
+  }
+
+  useEffect(() => {
+    if (step === 'otp') startCooldown()
+    return () => clearInterval(cooldownRef.current)
+  }, [step])
 
   useEffect(() => {
     if (!useMsg91) return
@@ -30,8 +49,20 @@ export default function ForgotScreen({ onBack }) {
     e.preventDefault()
     setError(''); setBusy(true)
     try {
-      if (useMsg91) { sendOtp(mobile); setStep('otp') }
-      else { await resetPasswordRequestOtp(mobile); setStep('otp') }
+      await resetPasswordRequestOtp(mobile)   // always check first — returns 404 if not registered
+      if (useMsg91) { sendOtp(mobile) }
+      setStep('otp')
+    } catch (err) { setError(err.message) }
+    finally { setBusy(false) }
+  }
+
+  const handleResend = async () => {
+    setError(''); setResent(false); setBusy(true)
+    try {
+      if (useMsg91) { retryOtp() }
+      else { await resetPasswordRequestOtp(mobile) }
+      setResent(true)
+      startCooldown()
     } catch (err) { setError(err.message) }
     finally { setBusy(false) }
   }
@@ -79,12 +110,15 @@ export default function ForgotScreen({ onBack }) {
     <form onSubmit={handleVerifyOtp} className="space-y-4">
       <p className="text-sm text-gray-500 text-center">OTP sent to <span className="font-medium text-gray-700">{mobile}</span></p>
       <Field label="Enter OTP"><OtpInput value={code} onChange={setCode} /></Field>
-      {error && <p className="text-red-500 text-xs">{error}</p>}
+      {error  && <p className="text-red-500 text-xs">{error}</p>}
+      {resent && <p className="text-green-600 text-xs">OTP resent successfully.</p>}
       <SubmitBtn busy={busy} disabled={code.length !== 6} label="Verify OTP" busyLabel="Verifying…" />
       <div className="flex justify-between text-xs pt-1">
-        <button type="button" onClick={() => useMsg91 ? retryOtp() : resetPasswordRequestOtp(mobile).catch(() => {})}
-                className="text-brand-600 hover:text-brand-800 transition-colors">Resend OTP</button>
-        <BackBtn onClick={() => { setStep('mobile'); setError('') }} label="← Change number" />
+        <button type="button" onClick={handleResend} disabled={busy || cooldown > 0}
+                className="text-brand-600 hover:text-brand-800 disabled:opacity-50 transition-colors">
+          {cooldown > 0 ? `Resend OTP (${cooldown}s)` : 'Resend OTP'}
+        </button>
+        <BackBtn onClick={() => { setStep('mobile'); setError(''); setResent(false) }} label="← Change number" />
       </div>
     </form>
   )

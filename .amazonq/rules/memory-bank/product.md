@@ -1,44 +1,24 @@
 # Forte — Product Overview
 
 ## Purpose
-Forte is a captive portal WiFi authentication system for campuses and societies. It intercepts unauthenticated WiFi users, presents a login page, and grants network access by dynamically managing nftables firewall rules based on MAC addresses.
-
-## Value Proposition
-- Lightweight, self-hosted, Docker-based — no cloud dependency
-- Firewall-native access control via nftables MAC sets (no RADIUS required)
-- Configurable entirely via environment variables
-- Supports test/simulation mode via OpenWRT Docker rig
+Forte is a captive portal WiFi authentication system for campuses and societies. It intercepts unauthenticated clients, presents a login/signup UI, and grants network access by managing firewall rules (nftables) or via TP-Link Omada controller integration.
 
 ## Key Features
-- Username/password login with bcrypt-hashed credentials
-- Token-based sessions with configurable TTL (e.g. `8h`, `30m`)
-- MAC address allowlisting in nftables on login; removal on logout/expiry
-- Admin UI: view active sessions, manage users, force logout
-- CORS-configurable API for flexible deployment topologies
-- Nginx reverse proxy serves portal SPA and proxies `/api/` to backend
-- Runtime-configurable portal branding (app name, tagline, policy text, redirect URL)
+- Username/password login with JWT-based session tokens
+- User self-registration with OTP verification (MSG91 or dummy OTP for dev)
+- Password reset via OTP flow
+- Admin panel: create/delete users, revoke sessions, view active sessions
+- nftables MAC-based allowlist management (direct or via `docker exec` into a router container)
+- TP-Link Omada SDN controller integration for EAP/Gateway-based auth
+- Configurable branding (app name, tagline, policy text, logo)
+- Captive portal redirect support (`?redirect=` query param)
+- Policy page with markdown-rendered content
 
 ## Target Users
-- Campus IT administrators managing guest/student WiFi
-- Society/community network operators
-- Developers building or testing captive portal integrations
+- Campus/society network administrators who need a self-hosted captive portal
+- Deployments on OpenWrt routers or Docker-based infrastructure
 
-## Use Cases
-- Guest WiFi login for universities, co-working spaces, housing societies
-- Time-limited network access sessions
-- Admin-controlled user provisioning without a full RADIUS stack
-
-## Current MVP Scope
-- Captive portal with username/password authentication
-- Session-based access control (time-limited)
-- Admin dashboard (session monitoring, user management)
-- MAC-based firewall enforcement via nftables
-- Logging of sessions (IP, MAC, timestamps)
-
-## Planned / Future
-- OTP (SMS/Email) authentication
-- SSO (SAML/OAuth)
-- Voucher codes
-- Bandwidth throttling
-- Advanced analytics, AI anomaly detection
-- Multi-tenant support
+## Deployment
+- Two containers: `forte-backend` (FastAPI) and `forte-portal` (Nginx + React SPA)
+- Published to GitHub Container Registry: `ghcr.io/cloudquestor/forte-backend:latest` and `ghcr.io/cloudquestor/forte-portal:latest`
+- Configured entirely via environment variables; persistent data stored in a Docker volume at `/data`
