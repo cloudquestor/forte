@@ -47,7 +47,11 @@ export function isEnabled() {
   return !!(config.msg91WidgetId && config.msg91TokenAuth)
 }
 
-export function sendOtp(mobile) { window.sendOtp(`91${mobile}`) }
+// export function sendOtp(mobile) { window.sendOtp(`91${mobile}`) }
+export function sendOtp(mobile) {
+  if (typeof window.sendOtp !== 'function') throw new Error('OTP service unavailable. Please try again.')
+  window.sendOtp(`91${mobile}`)
+}
 export function verifyOtp(code) { window.verifyOtp(code) }
 export function retryOtp() { window.retryOtp?.('11') }
 export function extractToken(data) { return data.message ?? data['access-token'] }

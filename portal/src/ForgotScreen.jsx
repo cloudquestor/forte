@@ -40,7 +40,7 @@ export default function ForgotScreen({ onBack }) {
     if (!useMsg91) return
     window.__msg91Success = (data) => { setMsg91Token(extractToken(data)); setStep('reset'); setBusy(false) }
     window.__msg91Failure = (err) => { setError(err.message || 'OTP verification failed'); setBusy(false) }
-    initWidget()
+    initWidget().catch(() => {}) 
     moveCaptchaTo('msg91-captcha-slot')
     return () => { window.__msg91Success = null; window.__msg91Failure = null }
   }, [useMsg91])
@@ -50,7 +50,7 @@ export default function ForgotScreen({ onBack }) {
     setError(''); setBusy(true)
     try {
       await resetPasswordRequestOtp(mobile)   // always check first — returns 404 if not registered
-      if (useMsg91) { sendOtp(mobile) }
+      if (useMsg91) { await initWidget(); sendOtp(mobile) }
       setStep('otp')
     } catch (err) { setError(err.message) }
     finally { setBusy(false) }

@@ -40,7 +40,7 @@ export default function SignupForm({ onBack }) {
     if (!useMsg91) return
     window.__msg91Success = (data) => { set('msg91Token')(extractToken(data)); setStep('details'); setBusy(false) }
     window.__msg91Failure = (err) => { setError(err.message || 'OTP verification failed'); setBusy(false) }
-    initWidget()
+    initWidget().catch(() => {}) 
     moveCaptchaTo('msg91-captcha-slot')
     return () => { window.__msg91Success = null; window.__msg91Failure = null }
   }, [useMsg91])
@@ -51,7 +51,7 @@ export default function SignupForm({ onBack }) {
     try {
       
       await signupRequestOtp(form.mobile)   
-      if (useMsg91) { sendOtp(form.mobile) }
+      if (useMsg91) {await initWidget(); sendOtp(form.mobile) }
       setStep('otp')
 
     } catch (err) { setError(err.message) }

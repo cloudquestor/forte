@@ -40,7 +40,7 @@ export default function OtpForm({ onSuccess, policyAccepted, setPolicyAccepted }
   const handleResend = async () => {
     setError(''); setResent(false); setBusy(true)
     try {
-      if (useMsg91) { retryOtp() }
+      if (useMsg91) { await initWidget(); retryOtp() }
       else { await requestOtp(mobile) }   // signupRequestOtp / resetPasswordRequestOtp per screen
       setResent(true)
       startCooldown()
@@ -62,20 +62,22 @@ export default function OtpForm({ onSuccess, policyAccepted, setPolicyAccepted }
       }
     }
     window.__msg91Failure = (err) => { setError(err.message || 'OTP verification failed'); setBusy(false) }
-    initWidget()
+    initWidget().catch(() => {}) 
     moveCaptchaTo('msg91-captcha-slot')
     return () => { window.__msg91Success = null; window.__msg91Failure = null }
   }, [useMsg91])
 
+  
   const handleRequestOtp = async (e) => {
     e.preventDefault()
     setError(''); setBusy(true)
     try {
-      if (useMsg91) { sendOtp(mobile); setStep('code') }
-      else { await requestOtp(mobile); setStep('code') }
+      if (useMsg91) { await initWidget(); sendOtp(mobile); setStep('otp') }
+      else { await resetPasswordRequestOtp(mobile); setStep('otp') }   // per screen
     } catch (err) { setError(err.message) }
     finally { setBusy(false) }
   }
+
 
   const handleVerifyOtp = (e) => {
     e.preventDefault()
