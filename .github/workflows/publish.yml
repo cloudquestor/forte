@@ -2,9 +2,16 @@ name: Publish Images
 
 on:
   push:
-    branches: [main]
-    tags:
-      - 'v*'
+    branches:
+      - main
+      - 'feature/*'
+      - 'bugfix/*'
+  pull_request:
+    branches:
+      - main
+    types:
+      - closed
+
 
 env:
   REGISTRY: ghcr.io
@@ -44,9 +51,10 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-backend:sha-${{ env.SHORT_SHA }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-backend:main
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-backend:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-backend:${{ github.ref_name == 'main' && 'main' || github.ref_name }}
+            ${{ github.ref_name == 'main' && format('{0}/{1}/forte-backend:latest', env.REGISTRY, env.OWNER) || '' }}
             ${{ startsWith(github.ref, 'refs/tags/v') && format('{0}/{1}/forte-backend:{2}', env.REGISTRY, env.OWNER, github.ref_name) || '' }}
+
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -64,9 +72,10 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-portal:sha-${{ env.SHORT_SHA }}
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-portal:main
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-portal:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/forte-portal:${{ github.ref_name == 'main' && 'main' || github.ref_name }}
+            ${{ github.ref_name == 'main' && format('{0}/{1}/forte-portal:latest', env.REGISTRY, env.OWNER) || '' }}
             ${{ startsWith(github.ref, 'refs/tags/v') && format('{0}/{1}/forte-portal:{2}', env.REGISTRY, env.OWNER, github.ref_name) || '' }}
+        
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
