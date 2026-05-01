@@ -1,0 +1,15 @@
+[Unit]
+Description=Forte Backend Service
+After=network.target
+
+[Service]
+Type=exec
+User=forte
+Group=forte
+WorkingDirectory=/opt/forte/backend
+EnvironmentFile=/opt/forte/.env
+ExecStart=/opt/forte/venv/bin/gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 127.0.0.1:8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

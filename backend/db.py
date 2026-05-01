@@ -3,7 +3,7 @@ import os
 import bcrypt
 import config
 
-DB_PATH = os.getenv("FORTE_DB_PATH", "/data/forte.db")
+DB_PATH = os.path.join(os.getenv("FORTE_DATA_DIR", "/data"), "forte.db")
 
 
 def hash_password(plain: str) -> str:

@@ -87,6 +87,37 @@ docker run -d \
 
 ---
 
+## Production Deployment
+
+For production deployment without Docker:
+
+1. Run the setup script as root:
+
+```sh
+sudo ./setup.sh
+```
+
+This will install dependencies, build the backend and portal, configure nginx, and set up systemd services.
+
+2. Edit the environment file:
+
+```sh
+sudo nano /opt/forte/.env
+```
+
+Set your `FORTE_USERS` and other configuration as needed.
+
+3. Start the services:
+
+```sh
+sudo systemctl start forte-backend
+sudo systemctl start nginx
+```
+
+The portal will be available at `http://your-server` and the API at `http://your-server/api/`.
+
+---
+
 ## Environment Variables
 
 ### Backend
