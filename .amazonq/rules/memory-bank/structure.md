@@ -72,6 +72,12 @@ Path-based routing without a router library:
 | PUT | `/api/users/{username}/password` | admin | Change password |
 | DELETE | `/api/users/{username}` | admin | Delete user |
 
+## OTP Integration
+- MSG91 SMS OTP service integration
+- Endpoints: `/api/otp/send`, `/api/otp/verify`, `/api/otp/resend`
+- Requires `MSG91_AUTHKEY` and `MSG91_TEMPLATE_ID` environment variables
+- Uses requests library for HTTP calls to MSG91 API
+
 ## Firewall Integration
 - `firewall.py` wraps `nft add/delete element` commands
 - In test mode (`FORTE_ROUTER_CONTAINER` set): runs via `docker exec <container> nft`

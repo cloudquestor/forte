@@ -42,6 +42,10 @@ ROUTER_CONTAINER: str | None = os.getenv("FORTE_ROUTER_CONTAINER")
 # e.g. https://192.168.1.1:8043/abcdefghijklmnopqrstuvwxyzabcdef/ → ID is abcdefghijklmnopqrstuvwxyzabcdef
 OMADA_CONTROLLER_ID: str = os.getenv("OMADA_CONTROLLER_ID", "")
 
+# MSG91 OTP integration (optional)
+MSG91_AUTHKEY: str = os.getenv("MSG91_AUTHKEY", "")
+MSG91_TEMPLATE_ID: str = os.getenv("MSG91_TEMPLATE_ID", "")
+
 # CORS — comma-separated allowed origins
 CORS_ORIGINS: list[str] = [
     o.strip()

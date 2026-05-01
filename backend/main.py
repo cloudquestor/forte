@@ -5,6 +5,7 @@ import auth
 import config
 import db
 import log
+import msg91
 
 logger = log.get("main")
 
@@ -139,3 +140,53 @@ def delete_user(username: str, authorization: str = Header(...)):
     if not db.delete_user(username):
         raise HTTPException(status_code=404, detail="User not found")
     return {"status": "deleted"}
+
+
+class SendOTPRequest(BaseModel):
+    mobile: str
+
+
+class VerifyOTPRequest(BaseModel):
+    mobile: str
+    otp: str
+
+
+class ResendOTPRequest(BaseModel):
+    mobile: str
+    retrytype: str = "text"
+
+
+@app.post("/api/otp/send")
+def send_otp(body: SendOTPRequest):
+    try:
+        result = msg91.send_otp(body.mobile)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Failed to send OTP: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to send OTP")
+
+
+@app.post("/api/otp/verify")
+def verify_otp(body: VerifyOTPRequest):
+    try:
+        result = msg91.verify_otp(body.mobile, body.otp)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Failed to verify OTP: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to verify OTP")
+
+
+@app.post("/api/otp/resend")
+def resend_otp(body: ResendOTPRequest):
+    try:
+        result = msg91.resend_otp(body.mobile, body.retrytype)
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Failed to resend OTP: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to resend OTP")
